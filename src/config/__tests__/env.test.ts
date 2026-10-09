@@ -7,7 +7,7 @@ describe('resolveApiBaseUrl', () => {
   });
 
   it('pairs the dev portal with the dev API', () => {
-    expect(resolveApiBaseUrl('https://inu-dormitory-dev.inuappcenter.kr/home')).toBe('https://inu-dormitory-dev.inuappcenter.kr');
+    expect(resolveApiBaseUrl('https://unidorm-test.pages.dev/home')).toBe('https://inu-dormitory-dev.inuappcenter.kr');
   });
 
   it('ignores an override that disagrees with a known web host', () => {

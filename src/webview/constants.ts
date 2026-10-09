@@ -53,6 +53,7 @@ export const PUSH_EXTERNAL_HOSTS = ["inu.ac.kr"] as const;
  */
 export const DEEP_LINK_HOSTS = [
   "unidorm.inuappcenter.kr",
+  "unidorm-test.pages.dev",
 ] as const;
 
 /**

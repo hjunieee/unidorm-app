@@ -27,8 +27,11 @@ describe('resolveDeepLink', () => {
     });
   });
 
-  it('normalizes the origin: path and query string open on ROOT_URL', () => {
-    const intent = resolveDeepLink('https://unidorm.inuappcenter.kr/chat/open/123');
+  it('normalizes the origin: a link on the dev portal host still opens on ROOT_URL', () => {
+    // Both hosts are claimed, but the two WebViews share the login token
+    // through one origin's localStorage — a sub-page on the other host would
+    // come up logged out.
+    const intent = resolveDeepLink('https://unidorm-test.pages.dev/chat/open/123');
     expect(intent).toEqual({
       kind: 'push',
       path: '/chat/open/123',

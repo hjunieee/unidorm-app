@@ -18,6 +18,7 @@ import { ROOT_URL } from '../webview/constants';
  */
 export const PORTAL_API_BY_WEB_HOST: Readonly<Record<string, string>> = {
   'unidorm.inuappcenter.kr': 'https://unidorm-server.inuappcenter.kr',
+  'unidorm-test.pages.dev': 'https://inu-dormitory-dev.inuappcenter.kr',
   'inu-dormitory-dev.inuappcenter.kr': 'https://inu-dormitory-dev.inuappcenter.kr',
 };
 

@@ -12,7 +12,7 @@ module.exports = () => ({
         bundleIdentifier: "com.inuappcenter.unidorm.dev",
         icon: "./assets/icon-dev.icon",
         googleServicesFile: "./GoogleService-Info-Dev.plist",
-        associatedDomains: ["applinks:inu-dormitory-dev.inuappcenter.kr"],
+        associatedDomains: ["applinks:unidorm-test.pages.dev"],
         infoPlist: {
           ...expo.ios.infoPlist,
           CFBundleDisplayName: "유니돔 Dev",
@@ -32,7 +32,7 @@ module.exports = () => ({
           {
             action: "VIEW",
             autoVerify: true,
-            data: [{ scheme: "https", host: "inu-dormitory-dev.inuappcenter.kr" }],
+            data: [{ scheme: "https", host: "unidorm-test.pages.dev" }],
             category: ["BROWSABLE", "DEFAULT"],
           },
         ],
