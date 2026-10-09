@@ -49,7 +49,7 @@ export default function RootLayout() {
               <Stack.Screen
                 name="webview"
                 options={{
-                  animation: "slide_from_right",
+                  animation: "ios_from_right",
                   gestureEnabled: true,
                 }}
               />
