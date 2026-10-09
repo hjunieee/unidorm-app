@@ -325,6 +325,7 @@ export default function WebViewContainer({ url, mode }: Props) {
   const [id] = useState(() => `${mode}-${nextWebViewSeq()}`);
 
   const [currentPath, setCurrentPath] = useState<string>("/");
+  const [canGoBack, setCanGoBack] = useState(false);
   const canGoBackRef = useRef(false);
   const lastBackPressRef = useRef(0);
   const pendingNavRef = useRef<string | null>(null);
@@ -720,13 +721,31 @@ export default function WebViewContainer({ url, mode }: Props) {
   useFocusEffect(
     useCallback(() => {
       if (Platform.OS !== "android") return;
-      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-        // Always consume it: the real decision lands once the page answers.
-        void handleSystemBack();
-        return true;
-      });
-      return () => sub.remove();
-    }, [handleSystemBack]),
+
+      // 루트 웹뷰: 메인 탭 이동 및 /home 2초 내 재입력 종료 토스트 처리를 위해 항상 BackHandler 등록
+      if (isRoot) {
+        const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+          void handleSystemBack();
+          return true;
+        });
+        return () => sub.remove();
+      }
+
+      // 서브 웹뷰:
+      // 웹뷰 내부에 back stack이 남아있는 경우(canGoBack === true):
+      // 시스템 예측 뒤로가기를 가로채(비활성화) 웹뷰 내부 back stack을 우선 소모
+      if (canGoBack) {
+        const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+          void handleSystemBack();
+          return true;
+        });
+        return () => sub.remove();
+      }
+
+      // 웹뷰 내부 back stack이 다 소모된 경우(canGoBack === false):
+      // BackHandler를 등록하지 않음 -> Android OS(One UI 8)의 시스템 예측 뒤로가기(Predictive Back)로 화면 pop 위임
+      return undefined;
+    }, [canGoBack, handleSystemBack, isRoot]),
   );
 
   // --- Bridge: Web -> Native -------------------------------------------------
@@ -909,6 +928,7 @@ export default function WebViewContainer({ url, mode }: Props) {
   const onNavigationStateChange = useCallback(
     (nav: WebViewNavigation) => {
       canGoBackRef.current = nav.canGoBack;
+      setCanGoBack(nav.canGoBack);
       if (nav.url) {
         try {
           const u = new URL(nav.url);

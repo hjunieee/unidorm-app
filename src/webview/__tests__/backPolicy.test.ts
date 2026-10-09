@@ -26,10 +26,10 @@ describe('resolveBackAction', () => {
       ).toBe('popScreen');
     });
 
-    it('still pops the sub-page even with WebView history (single loaded URL)', () => {
+    it('returns webViewGoBack for sub-page with inner WebView history', () => {
       expect(
         resolveBackAction({ handled: false, isRoot: false, webViewCanGoBack: true }),
-      ).toBe('popScreen');
+      ).toBe('webViewGoBack');
     });
 
     it('prompts to exit at the bottom of the root stack when on home tab', () => {

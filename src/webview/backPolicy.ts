@@ -50,7 +50,7 @@ export function resolveBackAction({
   if (handled === true) return 'none';
 
   if (!isRoot) {
-    if (handled === null && webViewCanGoBack) return 'webViewGoBack';
+    if (webViewCanGoBack) return 'webViewGoBack';
     return 'popScreen';
   }
 
