@@ -374,7 +374,9 @@ export default function WebViewContainer({ url, mode }: Props) {
       const script = `
         (function() {
           try {
-            if (window.location.pathname !== ${JSON.stringify(path)}) {
+            if (typeof window.navigateToPath === 'function') {
+              window.navigateToPath(${JSON.stringify(path)});
+            } else if (window.location.pathname !== ${JSON.stringify(path)}) {
               window.history.pushState({}, '', ${JSON.stringify(path)});
               window.dispatchEvent(new PopStateEvent('popstate'));
             }
