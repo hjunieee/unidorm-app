@@ -1,17 +1,17 @@
 {
   "expo": {
-    "name": "INTIP",
-    "slug": "intip-mobile-app",
-    "version": "3.0.14",
+    "name": "유니돔",
+    "slug": "unidorm-app",
+    "version": "3.0.0",
     "orientation": "portrait",
-    "scheme": "intipmobileapp",
+    "scheme": "unidormapp",
     "userInterfaceStyle": "light",
     "ios": {
-      "bundleIdentifier": "kr.inuappcenter.intip",
-      "buildNumber": "26",
+      "bundleIdentifier": "com.inuappcenter.unidorm",
+      "buildNumber": "13",
       "supportsTablet": true,
       "associatedDomains": [
-        "applinks:intip.inuappcenter.kr"
+        "applinks:unidorm.inuappcenter.kr"
       ],
       "googleServicesFile": "./GoogleService-Info.plist",
       "icon": "./assets/expo.icon",
@@ -20,21 +20,18 @@
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSSupportsLiveActivities": true,
-        "NSSupportsLiveActivitiesFrequentUpdates": true,
         "UIBackgroundModes": [
           "remote-notification",
           "fetch"
         ],
         "NSCameraUsageDescription": "게시판 및 채팅 업로드용 사진 촬영을 위해 카메라 접근 권한이 필요합니다.",
         "NSPhotoLibraryUsageDescription": "게시판 및 채팅 사진 업로드를 위해 사진첩 접근 권한이 필요합니다.",
-        "NSPhotoLibraryAddUsageDescription": "촬영한 사진을 저장하기 위해 사진첩 접근 권한이 필요합니다.",
-        "NSLocationWhenInUseUsageDescription": "캠퍼스맵 내 위치 표시 및 주변친구 찾기 기능을 위해 위치 권한이 필요합니다."
+        "NSPhotoLibraryAddUsageDescription": "촬영한 사진을 저장하기 위해 사진첩 접근 권한이 필요합니다."
       }
     },
     "android": {
-      "package": "inu.appcenter.intip_android",
-      "versionCode": 31,
+      "package": "com.hjunieee.inudormitory",
+      "versionCode": 23,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -48,7 +45,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "intip.inuappcenter.kr"
+              "host": "unidorm.inuappcenter.kr"
             }
           ],
           "category": [
@@ -82,7 +79,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#043799",
+          "backgroundColor": "#01499A",
           "image": "./assets/splash/logo-splash.png",
           "imageWidth": 178,
           "resizeMode": "contain"

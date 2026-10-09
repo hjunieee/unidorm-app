@@ -28,9 +28,7 @@ import Constants from "expo-constants";
  * `.env.local` from the project root, so the file survives that hand-off.
  */
 export const ROOT_URL =
-  process.env.NODE_ENV === "development"
-    ? "https://intip-test.pages.dev"
-    : (process.env.EXPO_PUBLIC_ROOT_URL ?? "https://intip.inuappcenter.kr");
+  process.env.EXPO_PUBLIC_ROOT_URL ?? "https://unidorm.inuappcenter.kr";
 
 /** Host that is considered "internal". Anything else opens in the system browser. */
 export const PORTAL_HOST = new URL(ROOT_URL).host;
@@ -54,8 +52,7 @@ export const PUSH_EXTERNAL_HOSTS = ["inu.ac.kr"] as const;
  * *whether* the app opens at all; this list is what the JS side then trusts.
  */
 export const DEEP_LINK_HOSTS = [
-  "intip.inuappcenter.kr",
-  "intip-test.pages.dev",
+  "unidorm.inuappcenter.kr",
 ] as const;
 
 /**
@@ -81,14 +78,14 @@ export const DEEP_LINK_EXCLUDED_PREFIXES = ["/.well-known/"] as const;
  * Suffix appended to the WebView User-Agent so the web frontend detects the
  * official app and switches to the multi-WebView routing protocol (spec §2.A).
  * The WebView's `applicationNameForUserAgent` joins it with a single space,
- * producing `" INTIPApp/<version>"`.
+ * producing `" UNIDormApp/<version>"`.
  *
  * The version is the app's `version` from app.json. `runtimeVersion` uses the
  * `appVersion` policy, so an OTA update only ever lands on a binary with the
  * same version — `expoConfig.version` always matches the native app version.
- * Falls back to the legacy hardcoded `1.0.0` if the config is unavailable.
+ * Falls back to the legacy hardcoded `3.0.0` if the config is unavailable.
  */
-export const APP_UA_SUFFIX = `INTIPApp/${Constants.expoConfig?.version ?? "1.0.0"}`;
+export const APP_UA_SUFFIX = `UNIDormApp/${Constants.expoConfig?.version ?? "3.0.0"}`;
 
 /**
  * Feature names the native shell advertises to the web via `bridgeCapabilities`
@@ -114,11 +111,13 @@ export const NATIVE_FEATURES = ["share"] as const;
 export const MAIN_TAB_PATHS = [
   "/",
   "/home",
-  "/bus",
-  "/chat/list",
-  "/save",
+  "/roommate",
+  "/roommate/my",
+  "/groupPurchase",
+  "/groupPurchase/comingsoon",
+  "/chat",
   "/mypage",
-  "/timetable",
+  "/complain",
 ] as const;
 
 const MOBILE_PREFIX = "/m";

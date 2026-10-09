@@ -21,7 +21,7 @@ export const INDICATOR_COLOR = '#8E8E93';
  * in-app splash art share these values so the hand-off between the two is
  * seamless — change them together or the logo visibly jumps.
  */
-export const SPLASH_BACKGROUND = '#043799';
+export const SPLASH_BACKGROUND = '#01499A';
 
 /**
  * Logo width (dp) as authored for the system splash: fixed rather than

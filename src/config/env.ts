@@ -17,11 +17,11 @@ import { ROOT_URL } from '../webview/constants';
  * token, and sent it to `portal-dev`, which answered 401 to all of it.
  */
 export const PORTAL_API_BY_WEB_HOST: Readonly<Record<string, string>> = {
-  'intip.inuappcenter.kr': 'https://portal.inuappcenter.kr',
-  'intip-test.pages.dev': 'https://portal-dev.inuappcenter.kr',
+  'unidorm.inuappcenter.kr': 'https://unidorm-server.inuappcenter.kr',
+  'inu-dormitory-dev.inuappcenter.kr': 'https://inu-dormitory-dev.inuappcenter.kr',
 };
 
-const FALLBACK_API = 'https://portal-dev.inuappcenter.kr';
+const FALLBACK_API = 'https://unidorm-server.inuappcenter.kr';
 
 /**
  * The API origin for a given WebView root, without a trailing slash.

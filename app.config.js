@@ -59,10 +59,10 @@ module.exports = () => ({
       ...expo.ios,
       buildNumber: process.env.EXPO_IOS_BUILD_NUMBER ?? expo.ios.buildNumber,
       ...(isDevVariant && {
-        bundleIdentifier: "kr.inuappcenter.intip.dev",
+        bundleIdentifier: "com.inuappcenter.unidorm.dev",
         icon: "./assets/icon-dev.icon",
         googleServicesFile: "./GoogleService-Info-Dev.plist",
-        associatedDomains: ["applinks:intip-test.pages.dev"],
+        associatedDomains: ["applinks:inu-dormitory-dev.inuappcenter.kr"],
         // aps-environment는 운영과 같은 "production"으로 둔다(app.json에서 상속).
         // 개발 빌드는 ad-hoc 배포 서명인데, ad-hoc/App Store 프로파일의
         // 엔타이틀먼트에는 항상 aps-environment=production만 들어간다 —
@@ -72,14 +72,14 @@ module.exports = () => ({
         // IOS_APP_DEVELOPMENT 프로파일로 서명해야 한다.
         infoPlist: {
           ...expo.ios.infoPlist,
-          CFBundleDisplayName: "INTIP Dev",
+          CFBundleDisplayName: "유니돔 Dev",
         },
       }),
     },
     android: {
       ...expo.android,
       ...(isDevVariant && {
-        package: "inu.appcenter.intip_android.dev",
+        package: "com.hjunieee.inudormitory.dev",
         googleServicesFile: "./google-services-dev.json",
         adaptiveIcon: {
           foregroundImage: "./assets/images/android-icon-foreground-dev.png",
@@ -89,7 +89,7 @@ module.exports = () => ({
           {
             action: "VIEW",
             autoVerify: true,
-            data: [{ scheme: "https", host: "intip-test.pages.dev" }],
+            data: [{ scheme: "https", host: "inu-dormitory-dev.inuappcenter.kr" }],
             category: ["BROWSABLE", "DEFAULT"],
           },
         ],
@@ -101,9 +101,7 @@ module.exports = () => ({
         requestHeaders: { "expo-channel-name": "development" },
       }),
     },
-    // 네이티브 SSO 동작이 바뀐 개발 설치본은 기존 OTA 캐시를 로드하면 안 된다.
-    ...(isDevVariant && { runtimeVersion: "3.0.13-sso.5" }),
-    ...(isDevVariant && { scheme: "intipmobileappdev" }),
+    ...(isDevVariant && { scheme: "unidormappdev" }),
     plugins: [
       ...plugins,
       "./plugins/withErpSsoCleartext",
