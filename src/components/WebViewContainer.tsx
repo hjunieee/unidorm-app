@@ -64,12 +64,9 @@ import { PROTOCOL_VERSION, type TokenInfoPayload } from "../../packages/intip-br
 import { clearCacheAndReload, clearWebViewCache } from "../native/cache";
 import { saveDownload } from "../native/downloads";
 import { ensureLocationPermission } from "../native/permissions";
-import { handleAgentBridgeMessage } from "../agent/agentBridgeHandler";
-import { handleTimetableBridgeMessage } from "../timetable/timetableBridgeHandler";
 import { clearTokenInfo, readTokenInfo, saveTokenInfo } from "../native/secureTokenStore";
 import { shareContent } from "../native/share";
 import { flushPendingFcmToken } from "../push/fcmTokenSync";
-import { syncLiveActivityStartToken } from "../timetable/liveActivityPushToStart";
 import {
   getFcmTokenWithRetry,
   getInitialNavIntent,
@@ -81,7 +78,6 @@ import { resolveGradeShareIntent } from "../share/gradeShareIntent";
 import { backgroundColorFor, INDICATOR_COLOR } from "../theme";
 import { resolveBackAction } from "../webview/backPolicy";
 import { parseTokenProbe, resolveWebToken, TOKEN_PROBE_SCRIPT } from "../webview/tokenProbe";
-import { refreshScheduleWidgets } from "../widgets/refresh";
 import {
   APP_UA_SUFFIX,
   isMainTabPath,
@@ -239,7 +235,6 @@ export default function WebViewContainer({ url, mode }: Props) {
     } else {
       await clearTokenInfo();
     }
-    void refreshScheduleWidgets();
   }, []);
 
   const primeLocationPermission = useCallback(() => {
@@ -272,43 +267,7 @@ export default function WebViewContainer({ url, mode }: Props) {
         return;
       }
 
-      // React Native pools this event object: `nativeEvent` is nulled out as
-      // soon as the handler returns, and both bridge handlers below are async,
-      // so anything past their first `await` sees `event.nativeEvent === null`.
-      // Passing the pooled `event` into `bridge.onMessage` from inside a
-      // `.then()` threw `TypeError: Cannot read property 'data' of null` (the
-      // adapter reads `event.nativeEvent.data`) — an unhandled rejection that
-      // silently dropped every ordinary bridge message on app start. The
-      // payload is already captured in `raw`, so hand the channel a snapshot.
-      const relayedEvent = { nativeEvent: { data: raw } } as WebViewMessageEvent;
-
-      // AI Agent: Portal account & Academic info messages
-      handleAgentBridgeMessage(raw, (response) => {
-        const script = `
-          window.dispatchEvent(new CustomEvent('intipAgentResult', {
-            detail: ${JSON.stringify(response)}
-          }));
-          true;
-        `;
-        webViewRef.current?.injectJavaScript(script);
-      }).then((handledAgent) => {
-        if (handledAgent) return;
-
-        // Timetable: NowBar & Ongoing Activity messages
-        handleTimetableBridgeMessage(raw, (response) => {
-          const script = `
-            window.dispatchEvent(new CustomEvent('intipTimetableResult', {
-              detail: ${JSON.stringify(response)}
-            }));
-            true;
-          `;
-          webViewRef.current?.injectJavaScript(script);
-        }).then((handledTimetable) => {
-          if (!handledTimetable) {
-            bridge.onMessage(relayedEvent);
-          }
-        });
-      });
+      bridge.onMessage(event);
     },
     [bridge, url, primeLocationPermission, adoptWebToken],
   );
@@ -404,9 +363,6 @@ export default function WebViewContainer({ url, mode }: Props) {
       registry.mergeSession({ fcmToken: token });
     }
     flushPendingFcmToken();
-    // Same survival points (login success etc.) — the push-to-start token
-    // needs a session to register, just like the FCM token.
-    void syncLiveActivityStartToken();
   }, [bridge, registry]);
 
   const navigateSpa = useCallback(
@@ -814,13 +770,9 @@ export default function WebViewContainer({ url, mode }: Props) {
       // registration) without a live WebView. An empty accessToken is the
       // web's logout signal — clear the native copy too.
       channel.on("syncTokenInfo", (tokenInfo) => {
-        // Refresh the schedule widgets once the native copy is written, so a
-        // login shows the timetable — and a logout removes it — right away
-        // rather than on the next trip to the background.
         void (tokenInfo.accessToken
           ? saveTokenInfo(tokenInfo)
-          : clearTokenInfo()
-        ).then(() => refreshScheduleWidgets());
+          : clearTokenInfo());
       }),
       // Multi-WebView state sync fallback/second path (see WebViewContext's
       // `relayBroadcastSync` doc comment): relay to every other mounted WebView.

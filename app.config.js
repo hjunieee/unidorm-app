@@ -1,56 +1,6 @@
-// app.json은 그대로 진실의 출처(source of truth)로 남긴다. Expo는 app.config.js가
-// 있으면 app.json을 자동으로 병합하지 않고 이 파일만 쓰므로, 여기서 app.json을
-// 직접 불러와 펼친 뒤 필요한 값만 조건부로 덮어쓴다.
-//
-// 배경 1: xcodebuild archive → altool 업로드 흐름에서 CFBundleVersion이 App Store
-// Connect에 이미 올라간 값과 같으면 -19232/DUPLICATE로 거부된다. CI가 prebuild
-// 직전에 scripts/ios-next-build-number.js로 "다음 buildNumber"를 계산해
-// EXPO_IOS_BUILD_NUMBER 환경변수로 넘기면 여기서 app.json의 값 대신 그걸 쓴다.
-// 로컬 개발 등 그 환경변수가 없을 때는 app.json의 ios.buildNumber를 그대로 쓴다.
-//
-// 배경 2: 내부 배포용 개발 빌드(운영 앱과 별도 설치)는 APP_VARIANT=development로
-// 빌드한다. eas.json의 build 프로필이 아니라 .github/workflows/dev-build.yml
-// (dev 브랜치 push 트리거, 자체 self-hosted 러너)이 이 환경변수를 세팅한다 —
-// 이 저장소는 `eas build`를 쓰지 않고, EAS는 OTA(EAS Update) 경로 전용이다.
-// 개발 변형은 운영 앱과 나란히 설치될 수 있어야 하므로 bundle id/package,
-// 앱 아이콘, Firebase 설정, associated domain(딥링크), URL scheme, 푸시
-// 환경까지 갈아끼운다. 단 `expo.name`(및 android/ios 타깃 이름)은 그대로
-// 둔다 — plugins/withIOSManualSigning.js와 withAndroidReleaseSigning.js가
-// `expo prebuild`가 생성하는 타깃/파일을 이름으로 앵커링하고 있어서, 이름이
-// 바뀌면 두 서명 플러그인이 조용히 no-op으로 빠진다. 홈 화면 표시 이름만
-// CFBundleDisplayName(iOS)과 strings.xml의 app_name(Android, 아래 로컬
-// plugins/withDevAppLabel.js)으로 따로 바꾼다.
 const { expo } = require("./app.json");
 
 const isDevVariant = process.env.APP_VARIANT === "development";
-
-// expo-widgets computes its widget target's bundle id and App Group from
-// `config.ios.bundleIdentifier` — which the dev variant overrides below to
-// `kr.inuappcenter.intip.dev`. That means a dev build would need its own
-// `.dev.ExpoWidgetsTarget` Bundle ID, its own `group.kr.inuappcenter.intip.dev`
-// App Group, and its own signing (dev-build.yml only wires up
-// IOS_PROVISIONING_PROFILE_NAME for the app target, not a widget one) — none
-// of which exist on Apple's side. Without this exclusion, dev Archive fails
-// with "Signing for ExpoWidgetsTarget requires a development team" and the
-// app target's own dev ad-hoc profile stops matching once expo-widgets adds
-// the App Groups entitlement to it. Simplest fix: dev builds don't get the
-// home screen widgets at all — `src/widgets/refresh.ts`'s calls still run,
-// they just have no widget extension to display the snapshot they write.
-// `withWidgetAssets` and `withBusArrivalRefreshIntent` go with them: they patch
-// the `ExpoWidgetsTarget` that expo-widgets creates and throw when that target
-// is missing.
-const WIDGET_PLUGIN_NAMES = new Set([
-  "expo-widgets",
-  "expo-widgets-glance",
-  "./plugins/withWidgetAssets",
-  "./plugins/withBusArrivalRefreshIntent",
-]);
-const plugins = isDevVariant
-  ? expo.plugins.filter((plugin) => {
-      const name = Array.isArray(plugin) ? plugin[0] : plugin;
-      return !WIDGET_PLUGIN_NAMES.has(name);
-    })
-  : expo.plugins;
 
 module.exports = () => ({
   expo: {
@@ -63,13 +13,6 @@ module.exports = () => ({
         icon: "./assets/icon-dev.icon",
         googleServicesFile: "./GoogleService-Info-Dev.plist",
         associatedDomains: ["applinks:inu-dormitory-dev.inuappcenter.kr"],
-        // aps-environment는 운영과 같은 "production"으로 둔다(app.json에서 상속).
-        // 개발 빌드는 ad-hoc 배포 서명인데, ad-hoc/App Store 프로파일의
-        // 엔타이틀먼트에는 항상 aps-environment=production만 들어간다 —
-        // "development"로 덮으면 프로파일과 불일치해서 archive가
-        // "Provisioning profile ... doesn't include the aps-environment
-        // entitlement"로 죽는다. sandbox APNs가 필요하면 ad-hoc이 아니라
-        // IOS_APP_DEVELOPMENT 프로파일로 서명해야 한다.
         infoPlist: {
           ...expo.ios.infoPlist,
           CFBundleDisplayName: "유니돔 Dev",
@@ -103,8 +46,7 @@ module.exports = () => ({
     },
     ...(isDevVariant && { scheme: "unidormappdev" }),
     plugins: [
-      ...plugins,
-      "./plugins/withErpSsoCleartext",
+      ...expo.plugins,
       ...(isDevVariant ? ["./plugins/withDevAppLabel"] : []),
     ],
   },

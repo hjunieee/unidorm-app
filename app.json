@@ -59,14 +59,8 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.WAKE_LOCK",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
-        "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
-        "android.permission.POST_PROMOTED_NOTIFICATIONS",
         "android.permission.CAMERA",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION"
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "blockedPermissions": [
         "android.permission.READ_MEDIA_IMAGES",
@@ -88,11 +82,8 @@
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
       "./plugins/withDefaultNotificationChannel",
-      "./plugins/withTimetableForegroundService",
       "./plugins/withAndroidReleaseSigning",
       "./plugins/withIOSManualSigning",
-      "./plugins/withWorkManagerVersionAlign",
-      "./plugins/withExpoWidgetsVersionSync",
       "./plugins/withApsEnvironmentProduction",
       [
         "expo-share-intent",
@@ -124,228 +115,12 @@
         {
           "iosPermissions": [
             "Camera",
-            "LocationWhenInUse",
             "PhotoLibrary",
             "Notifications"
           ]
         }
       ],
-      "expo-secure-store",
-      "./plugins/withWidgetAssets",
-      "./plugins/withBusArrivalRefreshIntent",
-      [
-        "expo-widgets",
-        {
-          "enablePushNotifications": true,
-          "frequentUpdates": true,
-          "widgets": [
-            {
-              "name": "NextClassWidget",
-              "displayName": "다음 수업",
-              "description": "오늘 다음 수업 또는 진행 중인 수업을 보여줍니다.",
-              "ios": {
-                "contentMarginsDisabled": true,
-                "supportedFamilies": [
-                  "systemSmall"
-                ]
-              }
-            },
-            {
-              "name": "TodayClassesWidget",
-              "displayName": "오늘 수업",
-              "description": "오늘 하루의 수업 목록을 보여줍니다.",
-              "ios": {
-                "contentMarginsDisabled": true,
-                "supportedFamilies": [
-                  "systemMedium"
-                ]
-              }
-            },
-            {
-              "name": "BusArrivalWidget",
-              "displayName": "인입런",
-              "description": "가까운 정류장의 버스 도착 정보를 보여줍니다.",
-              "ios": {
-                "contentMarginsDisabled": true,
-                "supportedFamilies": [
-                  "systemSmall"
-                ]
-              }
-            },
-            {
-              "name": "CafeteriaMenuWidget",
-              "displayName": "학식 메뉴",
-              "description": "선택한 식당의 오늘 메뉴를 보여줍니다.",
-              "ios": {
-                "contentMarginsDisabled": true,
-                "supportedFamilies": [
-                  "systemMedium"
-                ],
-                "configuration": {
-                  "title": "학식 메뉴",
-                  "description": "위젯에 보여줄 식당을 고르세요.",
-                  "parameters": {
-                    "cafeteria": {
-                      "title": "식당",
-                      "type": "enum",
-                      "default": "student12",
-                      "values": [
-                        {
-                          "name": "학생식당 1·2코너",
-                          "value": "student12"
-                        },
-                        {
-                          "name": "학생식당 4·5코너",
-                          "value": "student45"
-                        },
-                        {
-                          "name": "2호관(교직원)식당",
-                          "value": "staff2"
-                        },
-                        {
-                          "name": "제1기숙사식당",
-                          "value": "dorm1"
-                        },
-                        {
-                          "name": "사범대식당",
-                          "value": "education"
-                        },
-                        {
-                          "name": "27호관식당",
-                          "value": "bldg27"
-                        },
-                        {
-                          "name": "2기숙사 식당",
-                          "value": "dorm2"
-                        }
-                      ]
-                    }
-                  }
-                }
-              }
-            },
-            {
-              "name": "TimetableWidget",
-              "displayName": "시간표",
-              "description": "오늘의 시간표를 보여줍니다.",
-              "ios": {
-                "contentMarginsDisabled": true,
-                "supportedFamilies": [
-                  "systemLarge"
-                ]
-              }
-            }
-          ]
-        }
-      ],
-      [
-        "expo-widgets-glance",
-        {
-          "widgets": [
-            {
-              "name": "NextClassWidget",
-              "displayName": "다음 수업",
-              "description": "오늘 다음 수업 또는 진행 중인 수업을 보여줍니다.",
-              "android": {
-                "minWidth": 110,
-                "minHeight": 110,
-                "targetCellWidth": 2,
-                "targetCellHeight": 2,
-                "resizeMode": "none"
-              }
-            },
-            {
-              "name": "TodayClassesWidget",
-              "displayName": "오늘 수업",
-              "description": "오늘 하루의 수업 목록을 보여줍니다.",
-              "android": {
-                "minWidth": 250,
-                "minHeight": 200,
-                "targetCellWidth": 4,
-                "targetCellHeight": 3,
-                "resizeMode": "horizontal"
-              }
-            },
-            {
-              "name": "BusArrivalWidget",
-              "displayName": "인입런",
-              "description": "가까운 정류장의 버스 도착 정보를 보여줍니다.",
-              "android": {
-                "minWidth": 110,
-                "minHeight": 110,
-                "targetCellWidth": 2,
-                "targetCellHeight": 2,
-                "resizeMode": "none"
-              }
-            },
-            {
-              "name": "CafeteriaMenuWidget",
-              "displayName": "학식 메뉴",
-              "description": "선택한 식당의 오늘 메뉴를 보여줍니다.",
-              "configuration": {
-                "title": "학식 메뉴",
-                "description": "위젯에 보여줄 식당을 고르세요.",
-                "parameters": {
-                  "cafeteria": {
-                    "title": "식당",
-                    "type": "enum",
-                    "default": "student12",
-                    "values": [
-                      {
-                        "name": "학생식당 1·2코너",
-                        "value": "student12"
-                      },
-                      {
-                        "name": "학생식당 4·5코너",
-                        "value": "student45"
-                      },
-                      {
-                        "name": "2호관(교직원)식당",
-                        "value": "staff2"
-                      },
-                      {
-                        "name": "제1기숙사식당",
-                        "value": "dorm1"
-                      },
-                      {
-                        "name": "사범대식당",
-                        "value": "education"
-                      },
-                      {
-                        "name": "27호관식당",
-                        "value": "bldg27"
-                      },
-                      {
-                        "name": "2기숙사 식당",
-                        "value": "dorm2"
-                      }
-                    ]
-                  }
-                }
-              },
-              "android": {
-                "minWidth": 250,
-                "minHeight": 180,
-                "targetCellWidth": 4,
-                "targetCellHeight": 2,
-                "resizeMode": "horizontal"
-              }
-            },
-            {
-              "name": "TimetableWidget",
-              "displayName": "시간표",
-              "description": "오늘의 시간표를 보여줍니다.",
-              "android": {
-                "minWidth": 250,
-                "minHeight": 300,
-                "targetCellWidth": 4,
-                "targetCellHeight": 4,
-                "resizeMode": "vertical"
-              }
-            }
-          ]
-        }
-      ]
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -354,18 +129,8 @@
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "updates": {
-      "url": "https://u.expo.dev/4dd31317-0fde-484b-bbe5-c445f82ae718",
-      "requestHeaders": {
-        "expo-channel-name": "production"
-      }
-    },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "4dd31317-0fde-484b-bbe5-c445f82ae718"
-      }
-    },
-    "owner": "gang_03"
+      "router": {}
+    }
   }
 }
