@@ -1,0 +1,831 @@
+name: CI
+
+# ─────────────────────────────────────────────────────────────────────────
+# 언제 무엇이 도는가
+#
+#   PR 올림      →  검증만 (lint · 타입체크 · 테스트)
+#   main 머지    →  검증 → OTA 자동 발행
+#                   단, 네이티브가 바뀐 머지면 가드가 OTA를 막는다
+#   수동 실행    →  아래 "실행할 작업" 드롭다운에서 고른 것만
+#                   ("Android only release" / "iOS only release" /
+#                   "Android + iOS release"만 고르면 검증(verify)은
+#                   스킵된다 — 그 커밋은 이미 push/PR 때 검증을 통과했을
+#                   것이므로, 느린 검증 컨테이너를 릴리스 때 다시 띄우지
+#                   않는다. 검증이 릴리스 job을 막는 게이트는 아니라는
+#                   뜻이기도 하다 — 릴리스 전엔 별도로 "Verify only"를 먼저
+#                   돌려 확인하는 걸 권장)
+#
+# OTA(EAS Update)가 실어 나를 수 있는 건 JS 번들과 에셋뿐이다. Kotlin/Swift,
+# 네이티브 의존성, app.json의 네이티브 키, modules/ 아래 로컬 Expo 모듈이
+# 바뀌었다면 스토어 릴리스 빌드를 돌려야 한다.
+#
+# 네이티브를 바꿨을 때의 순서:
+#   1. app.json의 version(+ android.versionCode)을 올린다
+#   2. 수동 실행 → "Android only release" / "iOS only release"
+#   3. 스토어 배포가 끝난 뒤부터 그 버전 대상 OTA가 다시 의미를 갖는다
+#
+# 왜 1번이 먼저인가: runtimeVersion 정책이 appVersion이라, version을 올리는
+# 순간 이후의 OTA는 그 버전으로 빌드된 설치본에만 도달한다. 즉 네이티브
+# 코드가 없는 구버전 앱으로 그 코드를 호출하는 JS가 흘러갈 수 없다.
+#
+# ── 러너 ──────────────────────────────────────────────────────────────
+# 모든 잡이 self-hosted 러너(gangbook-air, macOS ARM64) 하나에서 돈다.
+# 이 저장소는 private이라 GitHub-hosted 러너는 분 단위로 과금되고,
+# 특히 macOS는 단가가 10배다 — iOS 빌드 한 번이 무료 분을 크게 깎아먹었다.
+# self-hosted는 실행 시간에 대한 과금이 없다.
+#
+# 대가로 알아둘 것:
+#   - 러너(맥)가 꺼져 있거나 오프라인이면 잡은 실패하지 않고 큐에서 대기한다
+#   - 러너가 하나뿐이라 잡은 순차 실행된다 (Android + iOS면 하나씩)
+#   - 아티팩트 스토리지는 self-hosted로 옮겨도 여전히 GitHub 쿼터를 쓴다
+#     (그래서 retention-days를 짧게 유지할 것)
+#
+# TEMP(2026-08-12): gangbook-air가 오프라인이라 모든 잡을 GitHub-hosted로
+# 임시 전환(verify/ota-publish/android-release/notify-mattermost →
+# ubuntu-latest, ios-release → macos-26, 335cbe4 이전 값 그대로). 러너가
+# 다시 온라인이 되면 각 잡의 `runs-on: self-hosted`로 되돌릴 것.
+# ─────────────────────────────────────────────────────────────────────────
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      # GitHub UI 드롭다운에 이 문자열이 그대로 노출되니 짧게 유지한다. 각
+      # 잡의 if는 이 문자열 앞부분(startsWith/contains)으로 실행 여부를
+      # 판정하므로(아래 참고), 값을 바꿀 땐 그 참조도 같이 맞춰야 한다.
+      task:
+        description: "실행할 작업"
+        required: true
+        type: choice
+        default: "OTA publish"
+        options:
+          - "OTA publish"
+          - "Android only release"
+          - "iOS only release"
+          - "Android + iOS release"
+          - "Verify only"
+      force_ota:
+        description: "⚠️ 네이티브 변경이 감지돼도 OTA를 강제 발행 (평소엔 끄세요)"
+        required: false
+        type: boolean
+        default: false
+
+# 수동 실행(workflow_dispatch)은 run_id를 섞어 항상 자기 혼자만의 그룹이 된다.
+# 안 그러면 main에 push된 자동 파이프라인(검증→OTA)이 도는 중에 수동으로
+# 릴리스 빌드나 검증만을 걸었을 때, 같은 ref를 대상으로 하는 두 실행이
+# cancel-in-progress로 서로를 취소시킨다. push/PR 쪽은 그대로 ref 단위로
+# 묶어 최신 커밋만 살아남게 둔다(원래 의도).
+concurrency:
+  group: >-
+    ci-${{ github.workflow }}-${{ github.ref }}-${{
+      github.event_name == 'workflow_dispatch' && github.run_id || ''
+    }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: 검증 (lint · 타입체크 · 테스트)
+    runs-on: self-hosted
+    # push/PR은 항상 돈다. 수동 실행은 "OTA publish"(→ 아래 needs: verify로
+    # 실제 게이트가 됨)이나 "Verify only"를 골랐을 때만 돈다 — "Android only
+    # release" / "iOS only release" / "Android + iOS release"만 고른 경우엔
+    # 스킵한다: 그 커밋은 이미 push/PR 시점에 검증을 통과했고, 이 job의
+    # 결과가 릴리스 job을 막지도 않으니(아래 참고) 느린 컨테이너를 다시
+    # 띄워 lint·tsc·test를 반복할 이유가 없다.
+    if: |
+      github.event_name != 'workflow_dispatch' ||
+      startsWith(inputs.task, 'OTA publish') ||
+      startsWith(inputs.task, 'Verify only')
+    steps:
+      - name: Checkout (with intip-bridge submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # Node 24 = npm 11, 로컬 개발 환경(Node 25)과 같은 npm 메이저.
+          # npm 10 과 11 은 optional peer 를 lockfile 에 다르게 기록해서,
+          # 버전이 어긋나면 `npm ci` 가 EUSAGE 로 떨어진다.
+          node-version: 24
+          # `cache: npm` 은 일부러 쓰지 않는다. self-hosted 러너는 같은 머신을
+          # 계속 쓰므로 ~/.npm 이 잡 사이에 이미 남아 있고, 캐시를 켜면 매 잡
+          # post 단계에서 1.8GB 를 GitHub 캐시 서비스로 올리느라 빌드보다
+          # 오래 걸린다.
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test -- --ci
+
+  ota-publish:
+    name: OTA 발행 (EAS Update → production)
+    # OTA first: every merge to main ships as an EAS Update, so a JS-only fix
+    # reaches users without a store round-trip. Native release builds stay
+    # manual (workflow_dispatch) and are only needed when something *native*
+    # changed — which is exactly what the guard below refuses to OTA past.
+    #
+    # Channel/runtime pairing (see 6f781b4): this repo does not use `eas build`,
+    # so app.json pins the channel header to "production" and resolves
+    # runtimeVersion from `expo.version` via the appVersion policy. An update
+    # therefore only ever reaches installed binaries built from the *same*
+    # app.json version — bump `version` and an update stops reaching anyone
+    # until a native release ships that version.
+    # `needs: verify` already gates this on a green lint/typecheck/test run —
+    # a failing job skips its dependents regardless of this condition.
+    #
+    # 수동 실행에서 릴리스 빌드를 고르면 OTA는 돌지 않는다: 네이티브를 바꾼
+    # 상황이라 version이 올라가 있고, 그 OTA는 어차피 아무에게도 닿지 않는다.
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && startsWith(inputs.task, 'OTA publish'))
+    needs: verify
+    runs-on: self-hosted
+    outputs:
+      skipped: ${{ steps.native_guard.outputs.changed }}
+    steps:
+      - name: Checkout (with intip-bridge submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          # Full history: the guard below diffs the range this push brought in.
+          fetch-depth: 0
+
+      # An OTA can only carry JS/assets. If a change needs new native code —
+      # a config plugin, an app.json native key, a dependency with a native
+      # module, a local Expo module under `modules/` — then publishing it to
+      # binaries that don't have that code is how you brick an installed app
+      # (the JS calls a module that isn't there, on every launch, with no way
+      # back except a store release).
+      #
+      # `modules` earns its place the hard way: PR #9 added
+      # `modules/intip-native-dialog` (Kotlin) without touching any of the
+      # other three paths, so the guard did not fire and only a manually
+      # cancelled run kept that JS off the 3.0.7 binaries.
+      #
+      # `app.json` also covers the version bump case: bumping `expo.version`
+      # moves runtimeVersion, so the update would silently reach nobody.
+      #
+      # This is a per-push diff, so it catches the change at the moment it
+      # lands. If you need something sharper later, `npx expo-updates
+      # fingerprint:generate` hashes the real native inputs — it needs the
+      # gitignored google-services.json / GoogleService-Info.plist decoded
+      # first, or the hash won't match what the release builds produced.
+      - name: Guard against native-affecting changes
+        id: native_guard
+        env:
+          FORCED: ${{ github.event_name == 'workflow_dispatch' && inputs.force_ota }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          if [ "$FORCED" = "true" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## ⚠️ 네이티브 변경 가드 우회됨"
+              echo
+              echo "\`force_ota\`가 켜진 채로 실행돼 네이티브 변경 검사를 건너뛰고 발행합니다."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # On a push, diff everything the push brought onto main. On a manual
+          # dispatch (or a first/force push with no usable `before`), fall back
+          # to the last commit.
+          if [ -n "${BEFORE:-}" ] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            BASE="$BEFORE"
+          else
+            BASE="$(git rev-parse HEAD~1)"
+          fi
+
+          CHANGED=$(git diff --name-only "$BASE" "$GITHUB_SHA" -- app.json plugins package.json modules)
+
+          if [ -n "$CHANGED" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "## ⏭️ OTA를 발행하지 않았습니다"
+              echo
+              echo "네이티브 빌드에 영향을 주는 파일이 \`$BASE\`..\`$GITHUB_SHA\` 범위에서 바뀌었습니다:"
+              echo
+              echo '```'
+              echo "$CHANGED"
+              echo '```'
+              echo
+              echo "OTA는 JS와 에셋만 실어 나릅니다. 위 변경을 담은 JS를 그대로 발행하면"
+              echo "그 네이티브 코드가 없는 설치본이 매 실행마다 없는 모듈을 호출하게 됩니다."
+              echo
+              echo "### 다음에 할 일"
+              echo
+              echo "**네이티브가 실제로 바뀐 경우** — 스토어 배포가 필요합니다."
+              echo "1. \`app.json\`의 \`version\`(과 \`android.versionCode\`)을 올려 커밋"
+              echo "2. **Run workflow → 실행할 작업: \`Android only release\` / \`iOS only release\`**"
+              echo
+              echo "**JS만 바뀌었는데 경로에 걸린 경우**(예: \`modules/\` 안의 .ts만 수정)"
+              echo "— **Run workflow → 실행할 작업: \`OTA publish\` + \`force_ota\` 체크** 로 발행하세요."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node
+        if: steps.native_guard.outputs.changed != 'true'
+        uses: actions/setup-node@v4
+        with:
+          # Node 24 = npm 11, 로컬 개발 환경(Node 25)과 같은 npm 메이저.
+          # npm 10 과 11 은 optional peer 를 lockfile 에 다르게 기록해서,
+          # 버전이 어긋나면 `npm ci` 가 EUSAGE 로 떨어진다.
+          node-version: 24
+          # `cache: npm` 은 일부러 쓰지 않는다. self-hosted 러너는 같은 머신을
+          # 계속 쓰므로 ~/.npm 이 잡 사이에 이미 남아 있고, 캐시를 켜면 매 잡
+          # post 단계에서 1.8GB 를 GitHub 캐시 서비스로 올리느라 빌드보다
+          # 오래 걸린다.
+
+      - name: Install dependencies
+        if: steps.native_guard.outputs.changed != 'true'
+        run: npm ci
+
+      # app.json points `googleServicesFile` at these on both platforms and
+      # they're gitignored, so the app config can't resolve without them.
+      # Removed again below, same as the release jobs do.
+      - name: Decode Firebase config files
+        if: steps.native_guard.outputs.changed != 'true'
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 --decode > google-services.json
+          echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}" | base64 --decode > GoogleService-Info.plist
+
+      # eas-cli reads EXPO_TOKEN directly, so no interactive login is needed.
+      # Create one at https://expo.dev/settings/access-tokens (the account must
+      # own gang_03/intip-mobile-app) and add it as the EXPO_TOKEN repo secret.
+      # 릴리스 잡과 같은 이유(아래 "Remove stray .env.local and Metro cache"
+      # 참고): 개발 빌드가 남긴 .env.local과 테스트 포털로 인라인된 Metro
+      # 변환 캐시가 OTA 번들에 섞이지 않게 한다.
+      - name: Remove stray .env.local and Metro cache
+        if: steps.native_guard.outputs.changed != 'true'
+        run: |
+          rm -f .env.local
+          rm -rf "$(node -p 'require("os").tmpdir()')"/metro-*
+
+      - name: Publish EAS Update
+        if: steps.native_guard.outputs.changed != 'true'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::error::EXPO_TOKEN secret is not set — cannot publish an EAS Update."
+            exit 1
+          fi
+
+          RUNTIME_VERSION=$(node -p "require('./app.json').expo.version")
+          MESSAGE=$(git log -1 --pretty=%s | cut -c1-100)
+
+          # `eas update` creates the *branch* but never the *channel*, and a
+          # channel is what the installed app actually asks for (app.json pins
+          # the expo-channel-name header to "production"). Publishing to a
+          # branch no channel points at succeeds and reaches nobody — so make
+          # sure the channel exists first. Idempotent: create only if absent.
+          if ! npx eas-cli@latest channel:view production --non-interactive >/dev/null 2>&1; then
+            echo "Channel 'production' does not exist — creating it (branch: production)."
+            npx eas-cli@latest channel:create production --non-interactive
+          fi
+
+          echo "Publishing to channel 'production' (runtimeVersion $RUNTIME_VERSION)"
+          npx eas-cli@latest update \
+            --branch production \
+            --platform all \
+            --message "$MESSAGE" \
+            --non-interactive
+
+          {
+            echo "## 🚀 EAS Update 발행됨"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| 채널 | \`production\` |"
+            echo "| runtimeVersion | \`$RUNTIME_VERSION\` |"
+            echo "| 메세지 | $MESSAGE |"
+            echo
+            echo "이 업데이트는 \`version\` 이 \`$RUNTIME_VERSION\` 인 설치본에만 도달합니다."
+            echo "그 버전의 스토어 배포가 아직 안 나갔다면, 지금은 아무에게도 닿지 않습니다."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove decoded secrets
+        if: always()
+        run: rm -f google-services.json GoogleService-Info.plist
+
+  android-release:
+    name: Android 릴리스 빌드 (AAB · APK)
+    # Manual only — a signed release build shouldn't fire on every PR/push.
+    # "Android + iOS release"도 이 조건에 함께 걸린다.
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      contains(inputs.task, 'Android')
+    runs-on: self-hosted
+    steps:
+      - name: Checkout (with intip-bridge submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # Node 24 = npm 11, 로컬 개발 환경(Node 25)과 같은 npm 메이저.
+          # npm 10 과 11 은 optional peer 를 lockfile 에 다르게 기록해서,
+          # 버전이 어긋나면 `npm ci` 가 EUSAGE 로 떨어진다.
+          node-version: 24
+          # `cache: npm` 은 일부러 쓰지 않는다. self-hosted 러너는 같은 머신을
+          # 계속 쓰므로 ~/.npm 이 잡 사이에 이미 남아 있고, 캐시를 켜면 매 잡
+          # post 단계에서 1.8GB 를 GitHub 캐시 서비스로 올리느라 빌드보다
+          # 오래 걸린다.
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      # withAndroidReleaseSigning (plugins/withAndroidReleaseSigning.js) wires
+      # this file + the env vars below into android/app/build.gradle during
+      # prebuild. Decoded fresh every run and removed at the end — never
+      # written to a cache or artifact.
+      - name: Decode release keystore
+        run: echo "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > intip.jks
+
+      # app.json's android.googleServicesFile points at this — gitignored
+      # (like the keystore), so prebuild has nothing to read without it.
+      - name: Decode google-services.json
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 --decode > google-services.json
+
+      # `--clean`: self-hosted 러너는 _work 디렉터리를 계속 재사용하므로 이전
+      # 실행이 남긴 android/ 가 그대로 있다. clean 없이 돌리면 mod 가 이미 패치된
+      # 파일 위에 다시 적용될 뿐 아니라, app.json 에서 **빼낸** 플러그인이
+      # 만들어 둔 타깃/entitlement 가 지워지지 않고 그대로 빌드에 들어간다.
+      # 방어: dev-build.yml이 개발 빌드에서 만드는 .env.local(테스트 포털을
+      # 가리킨다)이 같은 self-hosted 러너의 워크스페이스에 남아 있으면, 운영
+      # 릴리스가 조용히 intip-test.pages.dev를 보게 된다. actions/checkout이
+      # 보통 untracked 파일을 지우지만 그 동작에 기대지 않는다.
+      # 방어 2: .env.local을 지우는 것만으로는 부족하다. Metro 변환 캐시
+      # ($TMPDIR/metro-cache)는 러너(= 같은 맥 사용자)의 모든 실행이 공유하고,
+      # 캐시 키에 EXPO_PUBLIC_* 값이 들어가지 않는다 — 개발 빌드가
+      # `var ROOT_URL = "https://intip-test.pages.dev"`로 인라인해 둔
+      # constants.ts 변환 결과를, 소스가 같으면 운영 번들링이 그대로 재사용한다
+      # (3.0.14 첫 릴리스 IPA/APK가 실제로 테스트 포털을 보고 나갔다). 그래서
+      # 번들링 전에 캐시를 비운다.
+      - name: Remove stray .env.local and Metro cache
+        run: |
+          rm -f .env.local
+          rm -rf "$(node -p 'require("os").tmpdir()')"/metro-*
+
+      - name: Prebuild (android)
+        run: npx expo prebuild --clean --platform android
+
+      - name: Build signed release AAB and APK
+        working-directory: android
+        env:
+          ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+          GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC"
+        # x86/x86_64 are emulator-only ABIs — skipping them for this release
+        # build roughly halves native (reanimated/worklets) compile time with
+        # no effect on the real Play Store binary.
+        run: ./gradlew --no-daemon --build-cache assembleRelease bundleRelease -PreactNativeArchitectures=armeabi-v7a,arm64-v8a
+
+      - name: Remove decoded secrets
+        if: always()
+        run: rm -f intip.jks google-services.json
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: intip-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 14
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: intip-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 14
+
+  ios-release:
+    name: iOS 릴리스 빌드 (IPA → TestFlight)
+    # Manual only — a signed, uploaded release build shouldn't fire on every
+    # PR/push.
+    # "Android + iOS release"도 이 조건에 함께 걸린다.
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      contains(inputs.task, 'iOS')
+    # TEMP: self-hosted(gangbook-air)가 오프라인이라 macos-26으로 임시 전환
+    # (335cbe4 이전 값). GitHub-hosted macOS는 분 단가가 10배라 이 잡 하나가
+    # 무료 분을 크게 깎아먹는다 — 러너가 돌아오면 self-hosted로 되돌릴 것.
+    runs-on: self-hosted
+    env:
+      # Matches the AuthKey_<id>.p8 filename — not itself a secret.
+      APP_STORE_CONNECT_KEY_ID: "45D3A26734"
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      # APP_STORE_CONNECT_KEY_PATH는 여기 둘 수 없다: 잡 레벨 env에서 쓸 수
+      # 있는 컨텍스트는 github/needs/strategy/matrix/vars/secrets/inputs뿐
+      # 이라 `runner.temp`를 참조하면 워크플로 파일 검증 자체가 깨진다.
+      # 아래 "Decode App Store Connect API key"에서 $RUNNER_TEMP로 만들어
+      # $GITHUB_ENV에 실어 이후 스텝에 넘긴다.
+    steps:
+      - name: Checkout (with intip-bridge submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # Node 24 = npm 11, 로컬 개발 환경(Node 25)과 같은 npm 메이저.
+          # npm 10 과 11 은 optional peer 를 lockfile 에 다르게 기록해서,
+          # 버전이 어긋나면 `npm ci` 가 EUSAGE 로 떨어진다.
+          node-version: 24
+          # `cache: npm` 은 일부러 쓰지 않는다. self-hosted 러너는 같은 머신을
+          # 계속 쓰므로 ~/.npm 이 잡 사이에 이미 남아 있고, 캐시를 켜면 매 잡
+          # post 단계에서 1.8GB 를 GitHub 캐시 서비스로 올리느라 빌드보다
+          # 오래 걸린다.
+
+      # setup-xcode는 `sudo xcode-select -s`로 머신 전역의 활성 Xcode를 바꾼다.
+      # 매 실행 폐기되는 GitHub-hosted 이미지에서는 무해했지만 self-hosted는
+      # 개인 머신이라 그대로 남는다(게다가 무인 sudo가 필요하다). 설치돼 있는
+      # Xcode를 그대로 쓰고, 버전만 로그에 남겨 실패 시 원인을 알 수 있게 한다.
+      - name: Xcode 버전 확인
+        run: xcodebuild -version
+
+      - name: Install dependencies
+        run: npm ci
+
+      # app.json's ios.googleServicesFile points at this — gitignored, like
+      # android's counterpart.
+      - name: Decode GoogleService-Info.plist
+        run: echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}" | base64 --decode -o GoogleService-Info.plist
+
+      # Prebuild보다 먼저 와야 한다 — withIOSManualSigning 플러그인이
+      # IOS_PROVISIONING_PROFILE_NAME / IOS_WIDGET_PROVISIONING_PROFILE_NAME을
+      # prebuild 시점 process.env에서 읽어 INTIP 타깃과 ExpoWidgetsTarget
+      # 위젯 타깃(둘 다 Release만)을 각각 Manual 서명으로 고정한다. 순서가
+      # 바뀌면 플러그인이 그냥 조용히 no-op으로 지나가고 다시 Automatic으로
+      # 빌드된다.
+      #
+      # Everything below builds and signs the archive using a throwaway
+      # keychain scoped to this job (created fresh, deleted at the end).
+      # The .p12 / provisioning profile / API key are decoded fresh every
+      # run and never written to a cache or artifact.
+      #
+      # self-hosted에서는 이 잡이 개인 머신의 로그인 세션을 건드린다는 점이
+      # 달라진다. 그래서 원래 키체인 검색 목록을 파일로 남겨두고 정리 단계에서
+      # 되돌린다 — 안 그러면 삭제된 CI 키체인이 목록에 남아 Xcode/security가
+      # 매번 없는 키체인을 찾는다.
+      - name: Import signing credentials
+        env:
+          IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64 }}
+          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_WIDGET_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_WIDGET_PROVISIONING_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.IOS_CI_KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          CERT_PATH="$RUNNER_TEMP/ios_distribution.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/ios-ci.keychain-db"
+
+          echo -n "$IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64" | base64 --decode -o "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$IOS_DISTRIBUTION_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+
+          # 되돌릴 수 있도록 원래 목록을 먼저 저장한 뒤 CI 키체인을 앞에 붙인다.
+          security list-keychains -d user | sed 's/"//g' | xargs > "$RUNNER_TEMP/keychains.before"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" $(cat "$RUNNER_TEMP/keychains.before")
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          mkdir -p ~/Library/MobileDevice/"Provisioning Profiles"
+
+          # withIOSManualSigning이 PROVISIONING_PROFILE_SPECIFIER로 쓸 수 있게
+          # 프로파일 자체에 박힌 표시 이름(Name)을 꺼낸다 — 파일명이 아니라 이
+          # Name으로 Xcode가 매칭한다.
+          import_profile() {
+            local base64_var_name="$1" install_filename="$2" profile_name_env_var="$3"
+            local base64_value="${!base64_var_name}"
+            if [ -z "$base64_value" ]; then
+              echo "::error::$base64_var_name 시크릿이 비어 있다"
+              exit 1
+            fi
+            local profile_path="$RUNNER_TEMP/$install_filename"
+            echo -n "$base64_value" | base64 --decode -o "$profile_path"
+            cp "$profile_path" ~/Library/MobileDevice/"Provisioning Profiles"/"$install_filename"
+
+            security cms -D -i "$profile_path" > "$RUNNER_TEMP/${install_filename}.plist"
+            local profile_name
+            profile_name=$(/usr/libexec/PlistBuddy -c "Print :Name" "$RUNNER_TEMP/${install_filename}.plist")
+            if [ -z "$profile_name" ]; then
+              echo "::error::$install_filename 에서 Name을 못 읽었다 — $base64_var_name 확인 필요"
+              exit 1
+            fi
+            echo "$profile_name_env_var=$profile_name" >> "$GITHUB_ENV"
+          }
+
+          import_profile IOS_PROVISIONING_PROFILE_BASE64 INTIP.mobileprovision IOS_PROVISIONING_PROFILE_NAME
+          import_profile IOS_WIDGET_PROVISIONING_PROFILE_BASE64 INTIP-Widget.mobileprovision IOS_WIDGET_PROVISIONING_PROFILE_NAME
+
+      # Prebuild보다 먼저 옮겨왔다 — 원래는 "이 키는 업로드에서만 쓰인다"는
+      # 이유로 Archive 직전에 있었지만, 이제 바로 아래 "다음 buildNumber
+      # 계산" 스텝이 prebuild보다 먼저 App Store Connect API를 호출해야
+      # 해서 키가 그보다 먼저 필요해졌다. 정리 스텝은 여전히
+      # APP_STORE_CONNECT_KEY_PATH를 참조한다.
+      - name: Decode App Store Connect API key
+        env:
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+
+          # xcodebuild -authenticationKeyPath와 달리 altool --apiKey는 경로를
+          # 안 받는다 — AuthKey_<id>.p8이라는 파일명으로 고정된 몇몇 위치
+          # (~/private_keys 등)에서만 찾는다. $RUNNER_TEMP에 둬선 못 찾는다.
+          KEY_DIR="$HOME/private_keys"
+          mkdir -p "$KEY_DIR"
+          KEY_PATH="$KEY_DIR/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          echo -n "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode -o "$KEY_PATH"
+
+          # 정리 스텝이 참조한다.
+          echo "APP_STORE_CONNECT_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      # App Store Connect에 이미 올라간 최대 buildNumber+1을 계산해 prebuild에
+      # 넘긴다 — app.json의 ios.buildNumber를 커밋마다 손으로 올리지 않아도
+      # -19232/DUPLICATE가 나지 않게 하기 위함. app.config.js가 이 환경변수를
+      # app.json의 값보다 우선한다.
+      - name: Compute next iOS build number
+        run: |
+          set -euo pipefail
+          NEXT_BUILD_NUMBER=$(node scripts/ios-next-build-number.js)
+          echo "EXPO_IOS_BUILD_NUMBER=$NEXT_BUILD_NUMBER" >> "$GITHUB_ENV"
+
+      # `--clean`: self-hosted 러너는 _work 디렉터리를 계속 재사용하므로 이전
+      # 실행이 남긴 ios/ 가 그대로 있다. clean 없이 돌리면 mod 가 이미 패치된
+      # 파일 위에 다시 적용될 뿐 아니라, app.json 에서 **빼낸** 플러그인이
+      # 만들어 둔 타깃/entitlement 가 지워지지 않고 그대로 빌드에 들어간다.
+      # 방어: dev-build.yml이 개발 빌드에서 만드는 .env.local(테스트 포털을
+      # 가리킨다)이 같은 self-hosted 러너의 워크스페이스에 남아 있으면, 운영
+      # 릴리스가 조용히 intip-test.pages.dev를 보게 된다. actions/checkout이
+      # 보통 untracked 파일을 지우지만 그 동작에 기대지 않는다.
+      # 방어 2: .env.local을 지우는 것만으로는 부족하다. Metro 변환 캐시
+      # ($TMPDIR/metro-cache)는 러너(= 같은 맥 사용자)의 모든 실행이 공유하고,
+      # 캐시 키에 EXPO_PUBLIC_* 값이 들어가지 않는다 — 개발 빌드가
+      # `var ROOT_URL = "https://intip-test.pages.dev"`로 인라인해 둔
+      # constants.ts 변환 결과를, 소스가 같으면 운영 번들링이 그대로 재사용한다
+      # (3.0.14 첫 릴리스 IPA/APK가 실제로 테스트 포털을 보고 나갔다). 그래서
+      # 번들링 전에 캐시를 비운다.
+      - name: Remove stray .env.local and Metro cache
+        run: |
+          rm -f .env.local
+          rm -rf "$(node -p 'require("os").tmpdir()')"/metro-*
+
+      - name: Prebuild (ios)
+        run: npx expo prebuild --clean --platform ios
+
+      # -allowProvisioningUpdates 없음: withIOSManualSigning이 prebuild 때
+      # 이미 INTIP 타깃과 ExpoWidgetsTarget 위젯 타깃(둘 다 Release)을
+      # Manual + 위에서 넣은 프로파일/인증서로 고정했다. Xcode가 서명을
+      # 스스로 관리하지 않으니 인증서를 새로 만들 일도, 그래서 계정 인증서
+      # 한도를 채울 일도 없다.
+      - name: Archive
+        working-directory: ios
+        run: |
+          xcodebuild archive \
+            -workspace INTIP.xcworkspace \
+            -scheme INTIP \
+            -configuration Release \
+            -archivePath "$RUNNER_TEMP/INTIP.xcarchive" \
+            -destination "generic/platform=iOS"
+
+      - name: Export IPA
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>AANGG4Q668</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>signingCertificate</key>
+            <string>iPhone Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>kr.inuappcenter.intip</key>
+              <string>${IOS_PROVISIONING_PROFILE_NAME}</string>
+              <key>kr.inuappcenter.intip.ExpoWidgetsTarget</key>
+              <string>${IOS_WIDGET_PROVISIONING_PROFILE_NAME}</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/INTIP.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+
+      - name: Upload to App Store Connect
+        run: |
+          xcrun altool --upload-app \
+            -f "$RUNNER_TEMP/export/INTIP.ipa" \
+            -t ios \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+
+      - name: Clean up keychain and decoded secrets
+        if: always()
+        run: |
+          # 검색 목록을 CI 키체인 없는 원래 상태로 되돌린 뒤 삭제한다.
+          if [ -s "$RUNNER_TEMP/keychains.before" ]; then
+            security list-keychain -d user -s $(cat "$RUNNER_TEMP/keychains.before") || true
+          fi
+          security delete-keychain "$RUNNER_TEMP/ios-ci.keychain-db" 2>/dev/null || true
+          rm -f GoogleService-Info.plist
+          # 디코드 스텝 전에 실패했다면 비어 있을 수 있다.
+          rm -f "${APP_STORE_CONNECT_KEY_PATH:-}"
+          rm -f "$RUNNER_TEMP/INTIP.mobileprovision.plist"
+          rm -f ~/Library/MobileDevice/"Provisioning Profiles"/INTIP.mobileprovision
+          rm -f "$RUNNER_TEMP/INTIP-Widget.mobileprovision.plist"
+          rm -f ~/Library/MobileDevice/"Provisioning Profiles"/INTIP-Widget.mobileprovision
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: intip-release-ipa
+          path: ${{ runner.temp }}/export/INTIP.ipa
+          retention-days: 14
+
+  notify-mattermost:
+    name: Mattermost 알림
+    # Manual releases, plus every OTA publish on main (which is now the normal
+    # way a change reaches users, so it's worth announcing).
+    if: |
+      always() && (
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      )
+    needs: [verify, ota-publish, android-release, ios-release]
+    runs-on: self-hosted
+    steps:
+      # Incoming Webhook만 사용한다 (https://developers.mattermost.com/integrate/reference/bot-accounts/
+      # 의 Bot Account REST API가 아니라). 단순히 채널에 결과 메세지 하나
+      # 올리는 용도라 서버 base URL·채널 ID를 따로 관리해야 하는 봇 토큰
+      # 방식은 과하다 — Mattermost 관리 콘솔(Integrations > Incoming
+      # Webhooks)에서 채널을 고정해 만든 웹훅 URL을 그대로 쓴다.
+      - name: Send Mattermost notification
+        env:
+          MATTERMOST_WEBHOOK: ${{ secrets.MATTERMOST_WEBHOOK }}
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          OTA_RESULT: ${{ needs.ota-publish.result }}
+          # The guard sets this to "true" when it refused to publish; the job
+          # itself still succeeds, so the result alone can't tell them apart.
+          OTA_GUARDED: ${{ needs.ota-publish.outputs.skipped }}
+          ANDROID_RESULT: ${{ needs.android-release.result }}
+          IOS_RESULT: ${{ needs.ios-release.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_MSG: ${{ github.event.head_commit.message || github.sha }}
+          ACTOR: ${{ github.actor }}
+          REF_NAME: ${{ github.ref_name }}
+          # 수동 실행이면 고른 작업, main 머지면 자동 OTA 경로.
+          TASK_INPUT: ${{ inputs.task || 'main 머지 → 자동 OTA' }}
+        run: |
+          if [ -z "$MATTERMOST_WEBHOOK" ]; then
+            echo "MATTERMOST_WEBHOOK secret is not set. Skipping Mattermost notification."
+            exit 0
+          fi
+
+          map_status() {
+            case "$1" in
+              "success") echo "✅ 성공" ;;
+              "failure") echo "❌ 실패" ;;
+              "cancelled") echo "⚠️ 취소됨" ;;
+              "skipped") echo "⏭️ 건너뜀" ;;
+              *) echo "❓ 알 수 없음 ($1)" ;;
+            esac
+          }
+
+          ANDROID_STATUS=$(map_status "$ANDROID_RESULT")
+          IOS_STATUS=$(map_status "$IOS_RESULT")
+          VERIFY_STATUS=$(map_status "$VERIFY_RESULT")
+
+          if [ "$OTA_GUARDED" = "true" ]; then
+            OTA_STATUS="⏭️ 건너뜀 (네이티브 변경 감지)"
+          else
+            OTA_STATUS=$(map_status "$OTA_RESULT")
+          fi
+
+          COLOR="#2ECC71"
+          TITLE_EMOJI="🎉"
+          TITLE_TEXT="모바일 앱 배포 파이프라인 완료"
+
+          if [ "$OTA_RESULT" = "failure" ] || [ "$ANDROID_RESULT" = "failure" ] || [ "$IOS_RESULT" = "failure" ] || [ "$VERIFY_RESULT" = "failure" ]; then
+            COLOR="#E74C3C"
+            TITLE_EMOJI="❌"
+            TITLE_TEXT="모바일 앱 배포 파이프라인 실패"
+          elif [ "$ANDROID_RESULT" = "cancelled" ] || [ "$IOS_RESULT" = "cancelled" ]; then
+            COLOR="#E67E22"
+            TITLE_EMOJI="⚠️"
+            TITLE_TEXT="모바일 앱 배포 중단/취소됨"
+          fi
+
+          CLEAN_COMMIT_MSG=$(echo "$COMMIT_MSG" | head -n 1 | sed 's/"/\\"/g')
+
+          # Mattermost incoming webhook payload — Slack-compatible message
+          # attachments (fields[].short은 Discord embed의 inline과 동일하게
+          # 나란히 배치되는지를 결정한다). https://developers.mattermost.com/integrate/reference/bot-accounts/
+          # 문서의 REST API(/api/v4/posts, Bot Account 토큰)는 여기선 안 쓴다
+          # — 위 "Incoming Webhook만 사용한다" 주석 참고.
+          PAYLOAD=$(cat <<EOF
+          {
+            "attachments": [
+              {
+                "fallback": "${TITLE_EMOJI} ${TITLE_TEXT}",
+                "color": "${COLOR}",
+                "title": "${TITLE_EMOJI} ${TITLE_TEXT}",
+                "title_link": "${RUN_URL}",
+                "fields": [
+                  {
+                    "title": "📡 OTA (EAS Update / production)",
+                    "value": "${OTA_STATUS}",
+                    "short": true
+                  },
+                  {
+                    "title": "🤖 Android (APK & AAB)",
+                    "value": "${ANDROID_STATUS}",
+                    "short": true
+                  },
+                  {
+                    "title": "🍎 iOS (IPA / TestFlight)",
+                    "value": "${IOS_STATUS}",
+                    "short": true
+                  },
+                  {
+                    "title": "🔍 사전 검증 (Verify)",
+                    "value": "${VERIFY_STATUS}",
+                    "short": true
+                  },
+                  {
+                    "title": "📌 실행한 작업",
+                    "value": "${TASK_INPUT}",
+                    "short": true
+                  },
+                  {
+                    "title": "🌿 브랜치",
+                    "value": "${REF_NAME}",
+                    "short": true
+                  },
+                  {
+                    "title": "👤 실행자",
+                    "value": "${ACTOR}",
+                    "short": true
+                  },
+                  {
+                    "title": "💬 커밋 메세지",
+                    "value": "${CLEAN_COMMIT_MSG}",
+                    "short": false
+                  },
+                  {
+                    "title": "📦 빌드 결과물 및 아티팩트 다운로드",
+                    "value": "[👉 GitHub Actions 실행 페이지에서 AAB/IPA 다운로드하기](${RUN_URL}#artifacts)",
+                    "short": false
+                  }
+                ],
+                "footer": "INTIP Mobile Deployment Pipeline",
+                "ts": $(date -u +%s)
+              }
+            ]
+          }
+          EOF
+          )
+
+          curl -H "Content-Type: application/json" -X POST -d "$PAYLOAD" "$MATTERMOST_WEBHOOK"
+

@@ -1,0 +1,146 @@
+import { Stack } from "expo-router";
+import { ShareIntentProvider } from "expo-share-intent";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
+import { AppState, useColorScheme } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { KeyboardProvider } from "react-native-keyboard-controller";
+
+import WebViewControllerPanel from "../components/WebViewControllerPanel";
+import { AcademicScraperWebView } from "../agent/AcademicScraperWebView";
+import { LocalWatchManager } from "../agent/localWatchManager";
+import { TimetableScheduler } from "../timetable/timetableScheduler";
+import {
+  registerLiveActivityPushToStart,
+  syncLiveActivityStartToken,
+} from "../timetable/liveActivityPushToStart";
+import { checkForUpdate } from "../native/updateCheck";
+import { requestNotificationPermission } from "../push/messaging";
+import { backgroundColorFor } from "../theme";
+import { WebViewProvider } from "../webview/WebViewContext";
+import { refreshAllWidgets, watchAppLifecycleForWidgets } from "../widgets/refresh";
+
+// Hold the system splash until SplashArt has actually drawn its artwork, so it
+// hands straight over instead of flashing the bare window background in
+// between. SplashArt itself calls `hideAsync` once its images report they are
+// on screen. Both calls here must run in global scope, before the first
+// render.
+void SplashScreen.preventAutoHideAsync();
+SplashScreen.setOptions({ duration: 250, fade: true });
+
+export default function RootLayout() {
+  const scheme = useColorScheme();
+  // Native-stack's own screen background — without this, a pop transition can
+  // reveal the bare Android window background (unstyled, reads as black) for
+  // a frame before our content paints over it.
+  const contentBackgroundColor = backgroundColorFor(scheme);
+
+  useEffect(() => {
+    // Ask for notification permission on first launch (alert + badge + sound).
+    void requestNotificationPermission();
+    // Check for OTA updates (non-blocking; shows a prompt if one is available).
+    void checkForUpdate();
+    // Restore active local watch jobs (library seat / study room snipers).
+    void LocalWatchManager.restoreActiveJobs();
+
+    // Fetch each widget's data and push it. Fire-and-forget on purpose: the
+    // widgets already have whatever they were last given, so nothing here
+    // blocks the first render, and every failure inside is handled per-widget
+    // (see refresh.ts).
+    //
+    // App launch is only one of the moments this should run — a session
+    // arriving from the web login is the other, and neither covers a device
+    // that has been idle all morning. iOS partly answers that on its own: the
+    // schedule and cafeteria widgets are handed future-dated timeline entries
+    // here and walk through the rest of the day without the app. Android's
+    // answer is the refresh hook in expo-widgets-glance.
+    //
+    // NOTE (iOS): the expo-widgets plugin is on in app.json, but the App
+    // Group / provisioning profile wiring iOS widgets need for shared storage
+    // hasn't been set up — these calls are expected to no-op on a real iOS
+    // build until that's done.
+    void refreshAllWidgets();
+
+    // Sync and restore the timetable Ongoing Activity / Now Bar.
+    void TimetableScheduler.syncSchedule();
+
+    // iOS: register the ActivityKit push-to-start token so the server's
+    // pre-class alert can start the timetable Live Activity while the app is
+    // closed (see liveActivityPushToStart.ts).
+    const unregisterPushToStart = registerLiveActivityPushToStart();
+
+    const appStateSub = AppState.addEventListener("change", (state) => {
+      if (state === "active" || state === "background") {
+        void TimetableScheduler.syncSchedule();
+      }
+      if (state === "active") {
+        void syncLiveActivityStartToken();
+      }
+    });
+
+    return () => {
+      appStateSub.remove();
+      unregisterPushToStart();
+    };
+  }, []);
+
+  // Refresh every widget when the app goes to the background — the moment
+  // the home screen comes into view — and poll the bus widget while the app
+  // is open. See `watchAppLifecycleForWidgets`.
+  useEffect(() => watchAppLifecycleForWidgets(), []);
+
+  return (
+    // GestureHandlerRootView wraps the tree so gesture-handler based components
+    // (the dev controller panel) work; native-stack transitions/swipe-back are
+    // handled natively by react-native-screens and don't depend on it.
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* The app runs edge-to-edge (`edgeToEdgeEnabled=true`), so Android no
+          longer resizes the window for the soft keyboard — `adjustResize` in
+          the manifest is effectively a no-op there and the IME just covers the
+          bottom of the WebView. KeyboardProvider reports the real IME insets
+          instead, which `WebViewContainer` turns into bottom padding so the
+          WebView viewport shrinks like `adjustResize` used to.
+          The three Android flags below tell it the app already draws behind
+          the status/navigation bars, so it must not re-apply those insets. */}
+      <KeyboardProvider
+        statusBarTranslucent
+        navigationBarTranslucent
+        preserveEdgeToEdge
+      >
+        {/* Must wrap everything else (per expo-share-intent's own docs) so the
+          native module's deep-link-triggered cold start is caught before any
+          other provider mounts. Android only for now — the plugin config
+          (app.json) sets `disableIOS`, so this is a no-op on iOS. */}
+        <ShareIntentProvider>
+          {/* WebViewProvider orchestrates every WebView container (root + pushed
+            sub-pages) and backs the debug controller (dev menu + panel). */}
+          <WebViewProvider>
+            <StatusBar style="auto" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: contentBackgroundColor },
+              }}
+            >
+              {/* Root portal: main tabs live here via SPA routing. Swipe-back is
+              disabled so it never conflicts with the bottom tab navigation. */}
+              <Stack.Screen name="index" options={{ gestureEnabled: false }} />
+              <Stack.Screen
+                name="webview"
+                options={{
+                  animation: "default",
+                  gestureEnabled: true,
+                }}
+              />
+            </Stack>
+            {/* Debug-only GUI controller, rendered above the whole stack. */}
+            <WebViewControllerPanel />
+            {/* Hidden WebView for background portal SSO & academic scraping */}
+            <AcademicScraperWebView />
+          </WebViewProvider>
+        </ShareIntentProvider>
+      </KeyboardProvider>
+    </GestureHandlerRootView>
+  );
+}

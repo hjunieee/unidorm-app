@@ -1,0 +1,61 @@
+{
+  "name": "expo-widgets-glance",
+  "version": "0.1.0",
+  "description": "Android (Jetpack Glance) renderer for expo-widgets — runs the same widget JS a project already writes for iOS.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "keywords": [
+    "react-native",
+    "expo",
+    "expo-widgets",
+    "android",
+    "glance",
+    "app-widget",
+    "home-screen-widget",
+    "jetpack-glance",
+    "swiftui"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KimWash/expo-widgets-glance.git"
+  },
+  "bugs": {
+    "url": "https://github.com/KimWash/expo-widgets-glance/issues"
+  },
+  "homepage": "https://github.com/KimWash/expo-widgets-glance#readme",
+  "author": "KyoungMin Choi",
+  "license": "MIT",
+  "files": [
+    "android",
+    "plugin/build",
+    "scripts",
+    "index.ts",
+    "app.plugin.js",
+    "expo-module.config.json",
+    "README.ko.md",
+    "NOTICE.md",
+    "AGENTS.md",
+    "docs",
+    "examples"
+  ],
+  "scripts": {
+    "build": "expo-module build",
+    "build:plugin": "expo-module build plugin",
+    "build:bundle": "node ./scripts/build-android-bundle.mjs",
+    "clean": "expo-module clean",
+    "lint": "expo-module lint",
+    "prepublishOnly": "npm run build:plugin",
+    "expo-module": "expo-module"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "expo-widgets": "*",
+    "react": "*",
+    "react-native": "*"
+  },
+  "devDependencies": {
+    "@expo/spawn-async": "^1.8.0",
+    "@types/node": "^22.14.0",
+    "expo-module-scripts": "~56.0.3"
+  }
+}

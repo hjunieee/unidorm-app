@@ -1,0 +1,106 @@
+const { withAndroidManifest, AndroidConfig } = require('expo/config-plugins');
+
+const PERMISSIONS = [
+  'android.permission.FOREGROUND_SERVICE',
+  'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
+  'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
+  'android.permission.POST_PROMOTED_NOTIFICATIONS',
+  'android.permission.WAKE_LOCK',
+];
+
+module.exports = function withTimetableForegroundService(config) {
+  return withAndroidManifest(config, (cfg) => {
+    // 1. 필요한 uses-permission 추가
+    for (const permission of PERMISSIONS) {
+      AndroidConfig.Permissions.addPermission(cfg.modResults, permission);
+    }
+
+    // 2. Notifee ForegroundService 서비스 등록 (Android 14+ specialUse / dataSync 타입 필수)
+    const mainApplication = AndroidConfig.Manifest.getMainApplicationOrThrow(cfg.modResults);
+    mainApplication.service = mainApplication.service || [];
+
+    const existingServiceIndex = mainApplication.service.findIndex(
+      (s) => s.$['android:name'] === 'app.notifee.core.ForegroundService',
+    );
+
+    const serviceDefinition = {
+      $: {
+        'android:name': 'app.notifee.core.ForegroundService',
+        'android:foregroundServiceType': 'specialUse|dataSync',
+        'android:exported': 'false',
+      },
+      property: [
+        {
+          $: {
+            'android:name': 'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE',
+            'android:value': 'Timetable live ongoing activity',
+          },
+        },
+      ],
+    };
+
+    if (existingServiceIndex >= 0) {
+      mainApplication.service[existingServiceIndex] = serviceDefinition;
+    } else {
+      mainApplication.service.push(serviceDefinition);
+    }
+
+    // 2-2. Android 16 LiveUpdateService 등록 (Now Bar Foreground Service)
+    const existingLiveUpdateIndex = mainApplication.service.findIndex(
+      (s) => s.$['android:name'] === 'expo.modules.androidliveupdate.LiveUpdateService',
+    );
+
+    const liveUpdateServiceDefinition = {
+      $: {
+        'android:name': 'expo.modules.androidliveupdate.LiveUpdateService',
+        'android:foregroundServiceType': 'specialUse|dataSync',
+        'android:exported': 'false',
+      },
+      property: [
+        {
+          $: {
+            'android:name': 'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE',
+            'android:value': 'Timetable live ongoing activity',
+          },
+        },
+      ],
+    };
+
+    if (existingLiveUpdateIndex >= 0) {
+      mainApplication.service[existingLiveUpdateIndex] = liveUpdateServiceDefinition;
+    } else {
+      mainApplication.service.push(liveUpdateServiceDefinition);
+    }
+
+    // 3. Samsung One UI Now Bar / Ongoing Activity 메타데이터 선언
+    AndroidConfig.Manifest.addMetaDataItemToMainApplication(
+      mainApplication,
+      'com.samsung.android.support.ongoing_activity',
+      'true',
+    );
+
+    // 4. LiveUpdateAlarmReceiver 등록 (화면 꺼짐 및 백그라운드 1분 주기 갱신용)
+    mainApplication.receiver = mainApplication.receiver || [];
+    const existingReceiverIndex = mainApplication.receiver.findIndex(
+      (r) => r.$['android:name'] === 'expo.modules.androidliveupdate.LiveUpdateAlarmReceiver',
+    );
+    const receiverDefinition = {
+      $: {
+        'android:name': 'expo.modules.androidliveupdate.LiveUpdateAlarmReceiver',
+        'android:exported': 'false',
+      },
+      'intent-filter': [
+        {
+          action: [{ $: { 'android:name': 'expo.modules.androidliveupdate.ACTION_TICK' } }],
+        },
+      ],
+    };
+    if (existingReceiverIndex >= 0) {
+      mainApplication.receiver[existingReceiverIndex] = receiverDefinition;
+    } else {
+      mainApplication.receiver.push(receiverDefinition);
+    }
+
+    return cfg;
+  });
+};
