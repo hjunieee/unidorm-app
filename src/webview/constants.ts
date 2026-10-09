@@ -1,10 +1,10 @@
 import Constants from "expo-constants";
 
 /**
- * Static configuration for the INTIP portal shell.
+ * Static configuration for the UNIDorm portal shell.
  *
  * Mirrors the constants baked into the original native apps
- * (`WebViewActivity.kt`, `WebViewController.swift`, `getMobilePlatform.ts`).
+ * (`MainActivity.kt`, `WebViewController.swift`).
  */
 
 /**
@@ -18,7 +18,8 @@ import Constants from "expo-constants";
  * internal dev build (`.github/workflows/dev-build.yml`) is bundled in
  * *release* JS mode just like the store build, so `.env.production` alone
  * can't tell the two apart — the dev-build job writes this var into
- * `.env.local` so the dev variant loads `intip-test.pages.dev` instead.
+ * `.env.local` so the dev variant loads `unidorm-test.pages.dev` instead.
+
  *
  * It must be a file, not a job-level env var: the JS bundle is produced by
  * `expo export:embed`, which gradle and the Xcode script phase spawn as a

@@ -8,8 +8,9 @@ import { ROOT_URL } from '../webview/constants';
  * the token the WebView's login synced over, and a token is only valid on the
  * backend that issued it. So the API is decided by which web app the WebView
  * loaded — confirmed from the deployed bundles themselves:
- * `intip.inuappcenter.kr` is built against `portal`, `intip-test.pages.dev`
- * against `portal-dev`.
+ * `unidorm.inuappcenter.kr` is built against production server, `unidorm-test.pages.dev`
+ * against dev server.
+
  *
  * Choosing the two independently (`EXPO_PUBLIC_API_BASE_URL` in `.env`,
  * `ROOT_URL` defaulting to production) is what broke every authenticated

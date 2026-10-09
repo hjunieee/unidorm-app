@@ -77,5 +77,6 @@ export const SPLASH_LOGO_WIDTH =
     ? SPLASH_LOGO_AUTHORED_WIDTH / 2
     : SPLASH_LOGO_AUTHORED_WIDTH;
 
-/** Intrinsic aspect ratio of `assets/splash/logo-splash.png` (928 x 372). */
-export const SPLASH_LOGO_RATIO = 928 / 372;
+/** Intrinsic aspect ratio of `assets/splash/logo-splash.png` (512 x 512). */
+export const SPLASH_LOGO_RATIO = 1;
+

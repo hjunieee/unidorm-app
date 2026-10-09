@@ -1,5 +1,6 @@
 /**
- * A single INTIP WebView container — the unit of the native multi-WebView stack.
+ * A single UNIDorm WebView container — the unit of the native multi-WebView stack.
+
  * The root portal (`mode="root"`) hosts the main-tab SPA and is the
  * always-mounted launch screen; every sub-page is a pushed instance
  * (`mode="sub"`) on its own expo-router native-stack screen, so it gets the
@@ -681,6 +682,7 @@ export default function WebViewContainer({ url, mode }: Props) {
         handled: await askWebToHandleBack(),
         isRoot,
         webViewCanGoBack: canGoBackRef.current,
+        currentPath,
       });
       switch (action) {
         case "none":
@@ -691,6 +693,11 @@ export default function WebViewContainer({ url, mode }: Props) {
         case "popScreen":
           if (router.canGoBack()) router.back();
           return;
+        case "goToHome": {
+          setCurrentPath("/home");
+          navigateSpa("/home");
+          return;
+        }
         case "exitPrompt": {
           const now = Date.now();
           if (now - lastBackPressRef.current < 2000) {
@@ -707,7 +714,8 @@ export default function WebViewContainer({ url, mode }: Props) {
     } finally {
       backInFlightRef.current = false;
     }
-  }, [askWebToHandleBack, isRoot, router]);
+  }, [askWebToHandleBack, currentPath, isRoot, navigateSpa, router]);
+
 
   useFocusEffect(
     useCallback(() => {
@@ -901,10 +909,17 @@ export default function WebViewContainer({ url, mode }: Props) {
   const onNavigationStateChange = useCallback(
     (nav: WebViewNavigation) => {
       canGoBackRef.current = nav.canGoBack;
+      if (nav.url) {
+        try {
+          const u = new URL(nav.url);
+          setCurrentPath(u.pathname);
+        } catch {}
+      }
       registry.updateWebView(id, { canGoBack: nav.canGoBack, url: nav.url });
     },
     [id, registry],
   );
+
 
   const onLoadEnd = useCallback(() => {
     // Push the FCM token into the web context after every page load (spec §5.A).

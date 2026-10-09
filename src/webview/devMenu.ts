@@ -1,5 +1,6 @@
 /**
- * Registers the INTIP WebView controller into the Expo developer menu
+ * Registers the UNIDorm WebView controller into the Expo developer menu
+
  * (shake / three-finger long-press) via `expo-dev-menu`'s `registerDevMenuItems`.
  *
  * The menu items are thin entry points: the headline item opens the in-app

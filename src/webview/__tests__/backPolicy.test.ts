@@ -32,15 +32,68 @@ describe('resolveBackAction', () => {
       ).toBe('popScreen');
     });
 
-    it('prompts to exit at the bottom of the root stack', () => {
+    it('prompts to exit at the bottom of the root stack when on home tab', () => {
       expect(
-        resolveBackAction({ handled: false, isRoot: true, webViewCanGoBack: false }),
+        resolveBackAction({
+          handled: false,
+          isRoot: true,
+          webViewCanGoBack: false,
+          currentPath: '/home',
+        }),
+      ).toBe('exitPrompt');
+      expect(
+        resolveBackAction({
+          handled: false,
+          isRoot: true,
+          webViewCanGoBack: false,
+          currentPath: '/',
+        }),
       ).toBe('exitPrompt');
     });
 
-    it('prefers the root WebView document history over exiting the app', () => {
+    it('navigates to /home when on another main tab', () => {
       expect(
-        resolveBackAction({ handled: false, isRoot: true, webViewCanGoBack: true }),
+        resolveBackAction({
+          handled: false,
+          isRoot: true,
+          webViewCanGoBack: true,
+          currentPath: '/roommate',
+        }),
+      ).toBe('goToHome');
+      expect(
+        resolveBackAction({
+          handled: false,
+          isRoot: true,
+          webViewCanGoBack: false,
+          currentPath: '/chat',
+        }),
+      ).toBe('goToHome');
+      expect(
+        resolveBackAction({
+          handled: false,
+          isRoot: true,
+          webViewCanGoBack: false,
+          currentPath: '/mypage',
+        }),
+      ).toBe('goToHome');
+      expect(
+        resolveBackAction({
+          handled: false,
+          isRoot: true,
+          webViewCanGoBack: false,
+          currentPath: '/complain',
+        }),
+      ).toBe('goToHome');
+    });
+
+    it('steps back in WebView history if on non-main-tab in root', () => {
+      expect(
+        resolveBackAction({
+          handled: false,
+          isRoot: true,
+          webViewCanGoBack: true,
+          currentPath: '/article/123',
+        }),
       ).toBe('webViewGoBack');
     });
   });
@@ -51,7 +104,12 @@ describe('resolveBackAction', () => {
         resolveBackAction({ handled: null, isRoot: false, webViewCanGoBack: true }),
       ).toBe('webViewGoBack');
       expect(
-        resolveBackAction({ handled: null, isRoot: true, webViewCanGoBack: true }),
+        resolveBackAction({
+          handled: null,
+          isRoot: true,
+          webViewCanGoBack: true,
+          currentPath: '/article/123',
+        }),
       ).toBe('webViewGoBack');
     });
 
@@ -60,8 +118,14 @@ describe('resolveBackAction', () => {
         resolveBackAction({ handled: null, isRoot: false, webViewCanGoBack: false }),
       ).toBe('popScreen');
       expect(
-        resolveBackAction({ handled: null, isRoot: true, webViewCanGoBack: false }),
+        resolveBackAction({
+          handled: null,
+          isRoot: true,
+          webViewCanGoBack: false,
+          currentPath: '/home',
+        }),
       ).toBe('exitPrompt');
     });
   });
 });
+

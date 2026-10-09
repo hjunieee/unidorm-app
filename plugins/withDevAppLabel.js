@@ -17,10 +17,11 @@ module.exports = function withDevAppLabel(config) {
     const strings = cfg.modResults.resources.string ?? [];
     const appName = strings.find((s) => s.$.name === "app_name");
     if (appName) {
-      appName._ = "INTIP Dev";
+      appName._ = "유니돔 Dev";
     } else {
-      strings.push({ $: { name: "app_name" }, _: "INTIP Dev" });
+      strings.push({ $: { name: "app_name" }, _: "유니돔 Dev" });
     }
+
     cfg.modResults.resources.string = strings;
     return cfg;
   });

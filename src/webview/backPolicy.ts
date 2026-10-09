@@ -11,6 +11,8 @@
  * Kept free of React/react-native so the policy itself is unit-testable.
  */
 
+import { isMainTabPath, normalizePath } from './constants';
+
 /** What the shell should do once the page has (or hasn't) answered. */
 export type BackAction =
   /** The page consumed it (closed a modal, walked its own history). */
@@ -19,6 +21,8 @@ export type BackAction =
   | 'webViewGoBack'
   /** Pop this sub-page off the native stack. */
   | 'popScreen'
+  /** Navigate back to the home tab before exiting. */
+  | 'goToHome'
   /** Root, bottom of the stack: "press again to exit". */
   | 'exitPrompt';
 
@@ -33,24 +37,38 @@ export type BackContext = {
   isRoot: boolean;
   /** The WebView's own `canGoBack` from `onNavigationStateChange`. */
   webViewCanGoBack: boolean;
+  /** Current pathname of the root or sub-page WebView. */
+  currentPath?: string;
 };
 
 export function resolveBackAction({
   handled,
   isRoot,
   webViewCanGoBack,
+  currentPath = '/',
 }: BackContext): BackAction {
   if (handled === true) return 'none';
 
-  // No answer: fall back to the WebView's own history so a `pushState` modal
-  // still gets its `popstate` even with the bridge out of reach.
-  //
-  // Root also takes this path on an explicit "not handled", because the page's
-  // SPA depth counter is per-document: a full page load inside the root
-  // WebView leaves real back entries the page can no longer see, and stepping
-  // back into them always beats prompting to exit the app. A sub-page is a
-  // single loaded URL, so there the page's answer is authoritative.
-  if ((handled === null || isRoot) && webViewCanGoBack) return 'webViewGoBack';
+  if (!isRoot) {
+    if (handled === null && webViewCanGoBack) return 'webViewGoBack';
+    return 'popScreen';
+  }
 
-  return isRoot ? 'exitPrompt' : 'popScreen';
+  // Root WebView:
+  const norm = normalizePath(currentPath);
+  const isMainTab = isMainTabPath(norm);
+  const isHome = norm === '/' || norm === '/home';
+
+  if (isMainTab) {
+    if (isHome) {
+      return 'exitPrompt';
+    }
+    return 'goToHome';
+  }
+
+  // If inside root but not a main tab (e.g. sub-path loaded in root)
+  if (webViewCanGoBack) return 'webViewGoBack';
+
+  return 'goToHome';
 }
+

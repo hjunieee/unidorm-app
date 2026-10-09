@@ -9,7 +9,8 @@ import type { TokenInfoPayload } from '../../packages/intip-bridge/src/messages'
 
 export type TokenInfo = TokenInfoPayload;
 
-const STORAGE_KEY = 'intip.tokenInfo';
+const STORAGE_KEY = 'unidorm.tokenInfo';
+
 
 export async function saveTokenInfo(tokenInfo: TokenInfo): Promise<void> {
   await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(tokenInfo));

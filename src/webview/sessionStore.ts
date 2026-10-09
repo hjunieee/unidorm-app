@@ -26,8 +26,9 @@ import {
 // dev-controller action calls them — so deferring the read to call time is
 // enough to dodge it.
 function filePath(): string {
-  return `${ReactNativeBlobUtil.fs.dirs.DocumentDir}/intip-devsession.json`;
+  return `${ReactNativeBlobUtil.fs.dirs.DocumentDir}/unidorm-devsession.json`;
 }
+
 
 /** Serialize the live stack + session and write it to disk. */
 export async function writeSnapshot(

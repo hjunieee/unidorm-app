@@ -11,7 +11,7 @@
  * mount (cold start) or receives it live (app already running), and decides
  * root-SPA vs native sub-page vs in-app browser from there.
  *
- * Anything else — the `intipmobileapp://` custom scheme, dev-client URLs — is
+ * Anything else — the `unidormapp://` custom scheme, dev-client URLs — is
  * returned untouched so normal routing still applies.
  */
 import { resolveDeepLink } from '../links/deepLink';
