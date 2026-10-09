@@ -31,10 +31,15 @@ const { withAppBuildGradle } = require('expo/config-plugins');
 
 const RELEASE_SIGNING_CONFIG = `
         release {
-            storeFile file(System.getenv("ANDROID_RELEASE_STORE_FILE") ?: "../../intip.jks")
-            storePassword System.getenv("ANDROID_RELEASE_STORE_PASSWORD")
-            keyAlias System.getenv("ANDROID_RELEASE_KEY_ALIAS")
-            keyPassword System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
+            def releaseStorePassword = System.getenv("ANDROID_RELEASE_STORE_PASSWORD")
+            if (releaseStorePassword != null && !releaseStorePassword.isEmpty()) {
+                storeFile file(System.getenv("ANDROID_RELEASE_STORE_FILE") ?: "../../unidorm.jks")
+                storePassword releaseStorePassword
+                keyAlias System.getenv("ANDROID_RELEASE_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
+            } else {
+                initWith(signingConfigs.debug)
+            }
         }`;
 
 module.exports = function withAndroidReleaseSigning(config) {
