@@ -39,7 +39,7 @@ function isDeepLinkHost(host: string): boolean {
  * and a bare path doesn't parse.
  */
 function widgetPortalPath(url: string): string | null {
-  const match = /^(?:intipmobileapp:\/\/|\/)?widget(?=[/?#]|$)(.*)$/.exec(url);
+  const match = /^(?:unidormapp:\/\/|intipmobileapp:\/\/|\/)?widget(?=[/?#]|$)(.*)$/.exec(url);
   if (!match) return null;
   const rest = match[1];
   return rest.startsWith('/') ? rest : `/${rest}`;
@@ -69,21 +69,21 @@ function isExcludedPath(pathname: string): boolean {
 export function resolveDeepLink(url: string): NavIntent | null {
   if (!url || typeof url !== 'string') return null;
 
-  // Widget links (`intipmobileapp://widget/...`, `/widget/...`) first: the
+  // Widget links (`unidormapp://widget/...`, `/widget/...`) first: the
   // bare-path and custom-scheme branches below would otherwise pass the
   // `widget` prefix straight through as a portal path.
   const widgetPath = widgetPortalPath(url);
   if (widgetPath !== null) return intentForPortalPath(widgetPath);
 
-  // Bare paths (`/home/...`, `/services/...`), as an Ongoing-activity tap sends.
+  // Bare paths (`/home/...`, `/roommate/...`), as an Ongoing-activity tap sends.
   if (url.startsWith('/')) {
     return intentForPortalPath(url);
   }
 
-  // Custom app schemes (`intipmobileapp://...`, `intip://...`).
-  if (/^intip(mobileapp)?:\/\//i.test(url)) {
+  // Custom app schemes (`unidormapp://...`, `unidorm://...`).
+  if (/^(unidormapp|unidorm|intipmobileapp|intip):\/\//i.test(url)) {
     try {
-      const stripped = url.replace(/^intip(mobileapp)?:\/\//i, '');
+      const stripped = url.replace(/^(unidormapp|unidorm|intipmobileapp|intip):\/\//i, '');
       const pathWithSlash = stripped.startsWith('/') ? stripped : `/${stripped}`;
       return intentForPortalPath(pathWithSlash);
     } catch {

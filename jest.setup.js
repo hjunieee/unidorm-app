@@ -12,58 +12,6 @@ console.warn = (...args) => {
   originalWarn(...args);
 };
 
-jest.mock('expo-widgets', () => ({
-  createLiveActivity: jest.fn(() => ({
-    start: jest.fn(),
-    getInstances: jest.fn(() => []),
-  })),
-  createWidget: jest.fn(),
-  addPushToStartTokenListener: jest.fn(() => ({ remove: jest.fn() })),
-}));
-
-// Local iOS module (modules/intip-live-activity-tokens). Its native half never
-// exists under jest, and importing `expo` there breaks some test environments.
-jest.mock('./modules/intip-live-activity-tokens', () => ({
-  addActivityPushTokenListener: jest.fn(() => ({ remove: jest.fn() })),
-  finishBackgroundWork: jest.fn(),
-}));
-
-// Local Android 16 Live Update module (modules/intip-android-live-update).
-jest.mock('./modules/intip-android-live-update', () => ({
-  IntipAndroidLiveUpdate: {
-    isSupported: jest.fn(() => false),
-    canPostPromoted: jest.fn(() => false),
-    startOrUpdateLiveUpdate: jest.fn(() => ({ success: true, promotable: true })),
-    stopLiveUpdate: jest.fn(() => true),
-    openPromotionSettings: jest.fn(() => true),
-  },
-}));
-
-jest.mock('@expo/ui/swift-ui', () => ({
-  HStack: 'HStack',
-  VStack: 'VStack',
-  Text: 'Text',
-  Spacer: 'Spacer',
-  ProgressView: 'ProgressView',
-  Image: 'Image',
-  ZStack: 'ZStack',
-}));
-
-jest.mock('@expo/ui/swift-ui/modifiers', () => ({
-  font: jest.fn(),
-  foregroundStyle: jest.fn(),
-  monospacedDigit: jest.fn(),
-  padding: jest.fn(),
-  widgetURL: jest.fn(),
-  containerBackground: jest.fn(),
-  frame: jest.fn(),
-  labelsHidden: jest.fn(),
-  lineLimit: jest.fn(),
-  multilineTextAlignment: jest.fn(),
-  progressViewStyle: jest.fn(),
-  tint: jest.fn(),
-}));
-
 // The Firebase native module never exists under jest; importing messaging
 // throws "Native module RNFBAppModule not found" at module load.
 jest.mock('@react-native-firebase/messaging', () => {
@@ -81,9 +29,7 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(async () => {}),
 }));
 
-// `agentActionExecutor` reaches the hidden scraper WebView, so any test that
-// touches the push/agent graph loads react-native-webview — whose native
-// module lookup (`TurboModuleRegistry.getEnforcing`) throws under jest.
+// react-native-webview native module mock
 jest.mock('react-native-webview', () => ({ WebView: 'WebView' }));
 
 // `src/webview/constants.ts` reads the app version for the User-Agent suffix;

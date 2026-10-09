@@ -36,12 +36,7 @@ export type BridgeMessage =
   // Diagnostics relayed from the web for native-side logging.
   | { type: 'logWebDiagnostics'; payload: string }
   // Launch cleanup loop finished -> the shell can dismiss the loading overlay.
-  | { type: 'onLaunchWebCleanupFinished'; payload?: string }
-  // AI Agent: Portal account & Academic info actions
-  | { type: 'checkPortalAccount'; payload?: unknown }
-  | { type: 'savePortalAccount'; payload: { studentId: string; password: string } }
-  | { type: 'deletePortalAccount'; payload?: unknown }
-  | { type: 'fetchAcademicInfo'; payload?: unknown };
+  | { type: 'onLaunchWebCleanupFinished'; payload?: string };
 
 export type BridgeMessageType = BridgeMessage['type'];
 
@@ -56,10 +51,6 @@ const KNOWN_TYPES: readonly BridgeMessageType[] = [
   'requestPermissionSettings',
   'logWebDiagnostics',
   'onLaunchWebCleanupFinished',
-  'checkPortalAccount',
-  'savePortalAccount',
-  'deletePortalAccount',
-  'fetchAcademicInfo',
 ];
 
 const STRING_PAYLOAD_TYPES: readonly BridgeMessageType[] = [

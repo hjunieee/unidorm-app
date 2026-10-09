@@ -4,14 +4,14 @@ import { ROOT_URL } from '../../webview/constants';
 
 describe('resolveDeepLink', () => {
   it('routes a main-tab path through the root WebView (spa)', () => {
-    expect(resolveDeepLink('https://intip.inuappcenter.kr/home')).toEqual({
+    expect(resolveDeepLink('https://unidorm.inuappcenter.kr/home')).toEqual({
       kind: 'spa',
       path: '/home',
     });
   });
 
   it('treats the /m mobile prefix as the same main tab', () => {
-    expect(resolveDeepLink('https://intip.inuappcenter.kr/m/home')).toEqual({
+    expect(resolveDeepLink('https://unidorm.inuappcenter.kr/m/home')).toEqual({
       kind: 'spa',
       path: '/m/home',
     });
@@ -19,62 +19,58 @@ describe('resolveDeepLink', () => {
 
   it('pushes a native sub-page for everything else, query string intact', () => {
     expect(
-      resolveDeepLink('https://intip.inuappcenter.kr/councilnoticedetail?id=456'),
+      resolveDeepLink('https://unidorm.inuappcenter.kr/roommate/detail/456?from=push'),
     ).toEqual({
       kind: 'push',
-      path: '/councilnoticedetail?id=456',
-      url: `${ROOT_URL}/councilnoticedetail?id=456`,
+      path: '/roommate/detail/456?from=push',
+      url: `${ROOT_URL}/roommate/detail/456?from=push`,
     });
   });
 
-  it('normalizes the origin: a link on the other portal host still opens on ROOT_URL', () => {
-    // Both hosts are claimed, but the two WebViews share the login token
-    // through one origin's localStorage — a sub-page on the other host would
-    // come up logged out.
-    const intent = resolveDeepLink('https://intip-test.pages.dev/friend/invite/ABC123');
+  it('normalizes the origin: path and query string open on ROOT_URL', () => {
+    const intent = resolveDeepLink('https://unidorm.inuappcenter.kr/chat/open/123');
     expect(intent).toEqual({
       kind: 'push',
-      path: '/friend/invite/ABC123',
-      url: `${ROOT_URL}/friend/invite/ABC123`,
+      path: '/chat/open/123',
+      url: `${ROOT_URL}/chat/open/123`,
     });
   });
 
   it('keeps the fragment on the pushed URL', () => {
-    expect(resolveDeepLink('https://intip.inuappcenter.kr/phonebook#top')).toEqual({
+    expect(resolveDeepLink('https://unidorm.inuappcenter.kr/rules#top')).toEqual({
       kind: 'push',
-      path: '/phonebook#top',
-      url: `${ROOT_URL}/phonebook#top`,
+      path: '/rules#top',
+      url: `${ROOT_URL}/rules#top`,
     });
   });
 
   it('hands the static legal pages back to a browser', () => {
-    const url = 'https://intip.inuappcenter.kr/privacy-policy.html';
+    const url = 'https://unidorm.inuappcenter.kr/privacy-policy.html';
     expect(resolveDeepLink(url)).toEqual({ kind: 'external', url });
-    const terms = 'https://intip.inuappcenter.kr/terms-of-use.html';
+    const terms = 'https://unidorm.inuappcenter.kr/terms-of-use.html';
     expect(resolveDeepLink(terms)).toEqual({ kind: 'external', url: terms });
   });
 
   it('hands the domain-association files back to a browser', () => {
-    const url = 'https://intip.inuappcenter.kr/.well-known/assetlinks.json';
+    const url = 'https://unidorm.inuappcenter.kr/.well-known/assetlinks.json';
     expect(resolveDeepLink(url)).toEqual({ kind: 'external', url });
   });
 
-  it('opens a widget link on its portal path, main tab or sub-page', () => {
-    expect(resolveDeepLink('intipmobileapp://widget/timetable')).toEqual({ kind: 'spa', path: '/timetable' });
-    expect(resolveDeepLink('intipmobileapp://widget/bus')).toEqual({ kind: 'spa', path: '/bus' });
+  it('opens a widget/shortcut link on its portal path, main tab or sub-page', () => {
+    expect(resolveDeepLink('unidormapp://widget/roommate')).toEqual({ kind: 'spa', path: '/roommate' });
+    expect(resolveDeepLink('unidormapp://widget/chat')).toEqual({ kind: 'spa', path: '/chat' });
 
-    const category = encodeURIComponent('학생식당');
-    expect(resolveDeepLink(`intipmobileapp://widget/home/menu?category=${category}`)).toEqual({
+    expect(resolveDeepLink('unidormapp://widget/roommate/detail/123')).toEqual({
       kind: 'push',
-      path: `/home/menu?category=${category}`,
-      url: `${ROOT_URL}/home/menu?category=${category}`,
+      path: '/roommate/detail/123',
+      url: `${ROOT_URL}/roommate/detail/123`,
     });
   });
 
   it('accepts a widget link handed over as a bare path', () => {
     // The router may pass the hook just the path of a custom-scheme URL.
-    expect(resolveDeepLink('/widget/timetable')).toEqual({ kind: 'spa', path: '/timetable' });
-    expect(resolveDeepLink('intipmobileapp://widget')).toEqual({ kind: 'spa', path: '/' });
+    expect(resolveDeepLink('/widget/chat')).toEqual({ kind: 'spa', path: '/chat' });
+    expect(resolveDeepLink('unidormapp://widget')).toEqual({ kind: 'spa', path: '/' });
   });
 
   it('routes relative paths and custom scheme paths as portal paths', () => {
@@ -82,25 +78,25 @@ describe('resolveDeepLink', () => {
       kind: 'spa',
       path: '/home',
     });
-    expect(resolveDeepLink('/services/library')).toEqual({
+    expect(resolveDeepLink('/roommate/detail/123')).toEqual({
       kind: 'push',
-      path: '/services/library',
-      url: `${ROOT_URL}/services/library`,
+      path: '/roommate/detail/123',
+      url: `${ROOT_URL}/roommate/detail/123`,
     });
-    expect(resolveDeepLink('intipmobileapp://home/notice/123')).toEqual({
+    expect(resolveDeepLink('unidormapp://roommate/detail/123')).toEqual({
       kind: 'push',
-      path: '/home/notice/123',
-      url: `${ROOT_URL}/home/notice/123`,
+      path: '/roommate/detail/123',
+      url: `${ROOT_URL}/roommate/detail/123`,
     });
   });
 
   it('does not strip the prefix off a widget look-alike', () => {
     // `widget` only counts as the widget prefix on a path boundary; anything
     // else is just another portal path, not a widget link.
-    expect(resolveDeepLink('intipmobileapp://widgets/timetable')).toEqual({
+    expect(resolveDeepLink('unidormapp://widgets/test')).toEqual({
       kind: 'push',
-      path: '/widgets/timetable',
-      url: `${ROOT_URL}/widgets/timetable`,
+      path: '/widgets/test',
+      url: `${ROOT_URL}/widgets/test`,
     });
     expect(resolveDeepLink('/widgetfoo')).toEqual({
       kind: 'push',
@@ -113,7 +109,7 @@ describe('resolveDeepLink', () => {
     expect(resolveDeepLink('https://inu.ac.kr/notice/1')).toBeNull();
     expect(resolveDeepLink('https://evil.example.com/home')).toBeNull();
     // A look-alike subdomain must not match either — the host list is exact.
-    expect(resolveDeepLink('https://intip.inuappcenter.kr.evil.com/home')).toBeNull();
+    expect(resolveDeepLink('https://unidorm.inuappcenter.kr.evil.com/home')).toBeNull();
     expect(resolveDeepLink('')).toBeNull();
   });
 });

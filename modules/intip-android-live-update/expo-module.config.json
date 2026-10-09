@@ -1,7 +1,0 @@
-{
-  "name": "intip-android-live-update",
-  "platforms": ["android"],
-  "android": {
-    "modules": ["expo.modules.androidliveupdate.IntipAndroidLiveUpdateModule"]
-  }
-}

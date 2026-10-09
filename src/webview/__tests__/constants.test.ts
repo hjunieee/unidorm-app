@@ -12,11 +12,11 @@ describe('normalizePath', () => {
 
   it('strips a leading /m mobile prefix', () => {
     expect(normalizePath('/m/home')).toBe('/home');
-    expect(normalizePath('/m/chat/list')).toBe('/chat/list');
+    expect(normalizePath('/m/chat')).toBe('/chat');
   });
 
   it('leaves non-prefixed paths untouched', () => {
-    expect(normalizePath('/board/12')).toBe('/board/12');
+    expect(normalizePath('/roommate/detail/12')).toBe('/roommate/detail/12');
     expect(normalizePath('/mypage')).toBe('/mypage');
   });
 
@@ -27,7 +27,7 @@ describe('normalizePath', () => {
 
 describe('isMainTabPath', () => {
   it('recognises each main tab', () => {
-    for (const p of ['/', '/home', '/bus', '/chat/list', '/save', '/mypage', '/timetable']) {
+    for (const p of ['/', '/home', '/roommate', '/roommate/my', '/groupPurchase', '/groupPurchase/comingsoon', '/chat', '/mypage', '/complain']) {
       expect(isMainTabPath(p)).toBe(true);
     }
   });
@@ -42,7 +42,7 @@ describe('isMainTabPath', () => {
   });
 
   it('rejects sub-page paths', () => {
-    expect(isMainTabPath('/board/12')).toBe(false);
-    expect(isMainTabPath('/chat/room/5')).toBe(false);
+    expect(isMainTabPath('/roommate/detail/12')).toBe(false);
+    expect(isMainTabPath('/chat/open/5')).toBe(false);
   });
 });

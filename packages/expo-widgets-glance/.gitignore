@@ -1,7 +1,0 @@
-node_modules/
-.DS_Store
-android/build/
-android/.cxx/
-android/.gradle/
-plugin/build/
-*.log

@@ -105,8 +105,8 @@ describe('resolveNavIntent', () => {
       const data = { type: 'CHAT', path: '/chat/789', chatRoomId: '789', targetId: '789' };
       expect(resolveNavIntent(data)).toEqual({
         kind: 'push',
-        path: '/chat/789',
-        url: portalUrlFor('/chat/789'),
+        path: '/chat/open/789',
+        url: portalUrlFor('/chat/open/789'),
       });
     });
 
@@ -123,7 +123,7 @@ describe('resolveNavIntent', () => {
   describe('main-tab vs non-main-tab branching', () => {
     it('routes main-tab paths as "spa"', () => {
       expect(resolveNavIntent({ path: '/home' })).toEqual({ kind: 'spa', path: '/home' });
-      expect(resolveNavIntent({ path: '/chat/list' })).toEqual({ kind: 'spa', path: '/chat/list' });
+      expect(resolveNavIntent({ path: '/chat' })).toEqual({ kind: 'spa', path: '/chat' });
     });
 
     it('routes the /m mobile-prefixed alias of a main-tab path as "spa"', () => {
@@ -227,8 +227,8 @@ describe('resolveNavIntent', () => {
       } satisfies Record<string, string>;
       expect(resolveNavIntent(data)).toEqual({
         kind: 'push',
-        path: '/chat/789',
-        url: portalUrlFor('/chat/789'),
+        path: '/chat/open/789',
+        url: portalUrlFor('/chat/open/789'),
       });
     });
   });
