@@ -81,7 +81,20 @@ export function buildBridgeShimScript(platform: 'android' | 'ios'): string {
       openAppSettings: function () { post('openAppSettings'); },
       requestPermissionSettings: function () { post('requestPermissionSettings'); },
       logWebDiagnostics: function (payload) { post('logWebDiagnostics', payload == null ? '' : String(payload)); },
-      onLaunchWebCleanupFinished: function (payload) { post('onLaunchWebCleanupFinished', payload == null ? '' : String(payload)); }
+      onLaunchWebCleanupFinished: function (payload) { post('onLaunchWebCleanupFinished', payload == null ? '' : String(payload)); },
+      onRouteChange: function (path) { post('routeChange', path == null ? '' : String(path)); },
+      onAppReady: function () { post('onAppReady'); },
+      enterDetailView: function (arg1, arg2) {
+        var payload = {};
+        if (typeof arg1 === 'string' && arg1.charAt(0) === '{') {
+          try { payload = JSON.parse(arg1); } catch (e) { payload = { path: arg1 }; }
+        } else if (typeof arg1 === 'string' && arg2 != null) {
+          payload = { type: arg1, id: String(arg2) };
+        } else if (typeof arg1 === 'string') {
+          payload = { path: arg1 };
+        }
+        post('enterDetailView', payload);
+      }
     };
   `;
 
@@ -127,7 +140,12 @@ export function buildBridgeShimScript(platform: 'android' | 'ios'): string {
         openAppSettings: makeHandler('openAppSettings'),
         requestPermissionSettings: makeHandler('requestPermissionSettings'),
         logWebDiagnostics: makeHandler('logWebDiagnostics', function (b) { return b == null ? '' : String(b); }),
-        onLaunchWebCleanupFinished: makeHandler('onLaunchWebCleanupFinished', function (b) { return b == null ? '' : String(b); })
+        onLaunchWebCleanupFinished: makeHandler('onLaunchWebCleanupFinished', function (b) { return b == null ? '' : String(b); }),
+        onAppReady: makeHandler('onAppReady'),
+        routeChange: makeHandler('routeChange', function (b) { return b == null ? '' : String(b); }),
+        enterDetailView: makeHandler('enterDetailView', function (b) {
+          return typeof b === 'object' && b !== null ? b : { path: String(b) };
+        })
       })
     };
   `;
@@ -563,7 +581,13 @@ export function buildReceiveFcmTokenScript(token: string): string {
 /** Build the call that deep-links the SPA to a path (push-tap routing). */
 export function buildNavigateScript(path: string): string {
   const safe = JSON.stringify(path);
-  return `window.__intipNavigate && window.__intipNavigate(${safe}); true;`;
+  return `(function() {
+    if (typeof window.navigateToPath === 'function') {
+      window.navigateToPath(${safe});
+    } else if (typeof window.__intipNavigate === 'function') {
+      window.__intipNavigate(${safe});
+    }
+  })(); true;`;
 }
 
 /** 실행 중인 가장자리 가드의 좌우 폭을 갱신한다. */

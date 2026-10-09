@@ -53,7 +53,7 @@ import { LocalWatchManager } from '../agent/localWatchManager';
 
 export type { NavIntent };
 
-const ANDROID_CHANNEL_ID = 'default';
+const ANDROID_CHANNEL_ID = 'fcm_default_channel';
 /**
  * Chat channels. The server used to name these in the FCM `notification`
  * block and let the OS render the banner; chat messages are now sent to
@@ -71,7 +71,13 @@ async function ensureAndroidChannels(): Promise<void> {
   if (Platform.OS !== 'android') return;
   await notifee.createChannel({
     id: ANDROID_CHANNEL_ID,
-    name: '알림',
+    name: '일반 알림',
+    importance: AndroidImportance.HIGH,
+    sound: 'default',
+  });
+  await notifee.createChannel({
+    id: 'default',
+    name: '기본 알림',
     importance: AndroidImportance.HIGH,
     sound: 'default',
   });

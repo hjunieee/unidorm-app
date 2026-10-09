@@ -18,7 +18,7 @@
 const { withAndroidManifest, AndroidConfig } = require('expo/config-plugins');
 
 /** Must match the notifee channel id in `src/push/messaging.ts`. */
-const DEFAULT_NOTIFICATION_CHANNEL_ID = 'default';
+const DEFAULT_NOTIFICATION_CHANNEL_ID = 'fcm_default_channel';
 
 const META_DATA_NAME =
   'com.google.firebase.messaging.default_notification_channel_id';

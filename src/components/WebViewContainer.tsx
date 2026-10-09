@@ -24,6 +24,7 @@ import {
 } from "expo-router";
 import { useShareIntentContext } from "expo-share-intent";
 import * as WebBrowser from "expo-web-browser";
+import notifee from "@notifee/react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -864,6 +865,29 @@ export default function WebViewContainer({ url, mode }: Props) {
         void shareContent(value)
           .then((result) => channel.reply(msg, "shareResult", result))
           .catch((error) => console.warn("[bridge] share reply failed", error));
+      }),
+      channel.on("onAppReady", () => {
+        webBridgeReadyRef.current = true;
+      }),
+      channel.on("enterDetailView", (payload) => {
+        const targetId = payload?.id;
+        const targetPath = payload?.path;
+        if (targetId) {
+          notifee.cancelNotification(targetId).catch(() => {});
+        }
+        if (targetPath || targetId) {
+          notifee.getDisplayedNotifications().then((notifs) => {
+            notifs.forEach((n) => {
+              const d = n.notification.data;
+              if (
+                (targetPath && d?.path === targetPath) ||
+                (targetId && (d?.targetId === targetId || d?.chatRoomId === targetId || d?.noticeId === targetId))
+              ) {
+                if (n.id) notifee.cancelNotification(n.id).catch(() => {});
+              }
+            });
+          }).catch(() => {});
+        }
       }),
     ];
     return () => {

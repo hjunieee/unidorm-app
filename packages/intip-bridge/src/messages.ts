@@ -155,6 +155,17 @@ export type ShareResultPayload = {
  * 여부를 미리 판단할 수 있다. `protocol` 은 네이티브가 구현한 PROTOCOL_VERSION,
  * `features` 는 지원하는 이벤트 이름 등의 자유 문자열 목록이다.
  */
+export const EnterDetailViewPayload = z.object({
+  path: z.string().optional(),
+  type: z.string().optional(),
+  id: z.string().optional(),
+});
+export type EnterDetailViewPayload = {
+  path?: string;
+  type?: string;
+  id?: string;
+};
+
 export const BridgeCapabilitiesPayload = z.object({
   protocol: z.number(),
   features: z.array(z.string()),
@@ -203,6 +214,8 @@ const webToNativeSchema = z.discriminatedUnion("event", [
   // 사용자가 시트를 닫을 때까지 걸릴 수 있어 기본 request() 타임아웃(10s)을
   // 그대로 쓰면 안 된다(`requestWithOptions` 참고).
   def("share", SharePayload),
+  voidDef("onAppReady"),
+  def("enterDetailView", EnterDetailViewPayload),
 ]);
 
 const nativeToWebSchema = z.discriminatedUnion("event", [
@@ -252,7 +265,9 @@ export type WebToNative =
   | ({ event: "onLaunchWebCleanupFinished"; value?: string } & Meta)
   | ({ event: "routeChange"; value: string } & Meta)
   | ({ event: "jsAlert"; value: string } & Meta)
-  | ({ event: "share"; value: SharePayload } & Meta);
+  | ({ event: "share"; value: SharePayload } & Meta)
+  | ({ event: "onAppReady"; value?: undefined } & Meta)
+  | ({ event: "enterDetailView"; value: EnterDetailViewPayload } & Meta);
 export type WebToNativeEvent = WebToNative["event"];
 
 /** 네이티브가 웹으로 보내는 메시지. */

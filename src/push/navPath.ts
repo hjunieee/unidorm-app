@@ -8,7 +8,8 @@ import { PORTAL_HOST } from '../webview/constants';
 /** The raw path/route/link/url field from a notification payload, if any. */
 export function extractCandidate(data?: Record<string, unknown>): string | null {
   if (!data) return null;
-  const candidate = data.path ?? data.route ?? data.link ?? data.url;
+  const candidate =
+    data.path ?? data.TARGET_PATH ?? data.targetPath ?? data.route ?? data.link ?? data.url;
   return typeof candidate === 'string' && candidate.length > 0 ? candidate : null;
 }
 

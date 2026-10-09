@@ -11,7 +11,18 @@
  */
 
 /** Server-defined notification `type` (`data.type`, always a string over FCM). */
-export type NotificationType = 'GENERAL' | 'CHAT' | 'SCHOOL_NOTICE' | 'DEPARTMENT' | 'FRIEND';
+export type NotificationType =
+  | 'GENERAL'
+  | 'CHAT'
+  | 'CHAT_OPEN'
+  | 'CHAT_PERSONAL'
+  | 'ANNOUNCEMENT'
+  | 'NOTICE'
+  | 'COMPLAINT'
+  | 'ROOMMATE_POST'
+  | 'SCHOOL_NOTICE'
+  | 'DEPARTMENT'
+  | 'FRIEND';
 
 /**
  * Given the full `data` payload (so a builder can read e.g. `targetId` /
@@ -20,13 +31,44 @@ export type NotificationType = 'GENERAL' | 'CHAT' | 'SCHOOL_NOTICE' | 'DEPARTMEN
  */
 type RouteBuilder = (data: Record<string, unknown>) => string | undefined;
 
-/**
- * Empty until the web team confirms routes. Example of what an entry would
- * look like once `FRIEND`'s detail path is confirmed:
- *   FRIEND: (data) =>
- *     typeof data.targetId === 'string' ? `/friend/${data.targetId}` : undefined,
- */
-const ROUTE_MAP: Partial<Record<NotificationType, RouteBuilder>> = {};
+function extractId(data: Record<string, unknown>): string | undefined {
+  const candidate =
+    data.targetId ?? data.chatRoomId ?? data.noticeId ?? data.id;
+  if (typeof candidate === 'string' && candidate.trim() !== '') return candidate.trim();
+  if (typeof candidate === 'number') return String(candidate);
+  return undefined;
+}
+
+const ROUTE_MAP: Partial<Record<NotificationType, RouteBuilder>> = {
+  CHAT: (data) => {
+    const id = extractId(data);
+    return id ? `/chat/open/${id}` : undefined;
+  },
+  CHAT_OPEN: (data) => {
+    const id = extractId(data);
+    return id ? `/chat/open/${id}` : undefined;
+  },
+  CHAT_PERSONAL: (data) => {
+    const id = extractId(data);
+    return id ? `/chat/open/${id}` : undefined;
+  },
+  ANNOUNCEMENT: (data) => {
+    const id = extractId(data);
+    return id ? `/announcements/${id}` : undefined;
+  },
+  NOTICE: (data) => {
+    const id = extractId(data);
+    return id ? `/announcements/${id}` : undefined;
+  },
+  COMPLAINT: (data) => {
+    const id = extractId(data);
+    return id ? `/complain/${id}` : undefined;
+  },
+  ROOMMATE_POST: (data) => {
+    const id = extractId(data);
+    return id ? `/roommate/list/${id}` : undefined;
+  },
+};
 
 /** Map a notification's `type` to a portal path via `ROUTE_MAP`, if present. */
 export function routeForType(data?: Record<string, unknown>): string | null {
