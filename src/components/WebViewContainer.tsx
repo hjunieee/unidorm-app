@@ -64,6 +64,7 @@ import { createNativeChannel } from "../../packages/intip-bridge/src/adapters/na
 import { PROTOCOL_VERSION, type TokenInfoPayload } from "../../packages/intip-bridge/src/messages";
 import { clearCacheAndReload, clearWebViewCache } from "../native/cache";
 import { saveDownload } from "../native/downloads";
+import { handleAgentBridgeMessage } from "../agent/agentBridgeHandler";
 import { ensureLocationPermission } from "../native/permissions";
 import { clearTokenInfo, readTokenInfo, saveTokenInfo } from "../native/secureTokenStore";
 import { shareContent } from "../native/share";
@@ -268,7 +269,24 @@ export default function WebViewContainer({ url, mode }: Props) {
         return;
       }
 
-      bridge.onMessage(event);
+      // React Native pools this event object: nativeEvent is nulled out as
+      // soon as the handler returns, and agent bridge handlers below are async.
+      const relayedEvent = { nativeEvent: { data: raw } } as WebViewMessageEvent;
+
+      // AI Agent: Portal account & Academic info messages
+      handleAgentBridgeMessage(raw, (response) => {
+        const script = `
+          window.dispatchEvent(new CustomEvent('intipAgentResult', {
+            detail: ${JSON.stringify(response)}
+          }));
+          true;
+        `;
+        webViewRef.current?.injectJavaScript(script);
+      }).then((handledAgent) => {
+        if (!handledAgent) {
+          bridge.onMessage(relayedEvent);
+        }
+      });
     },
     [bridge, url, primeLocationPermission, adoptWebToken],
   );
@@ -1096,7 +1114,7 @@ export default function WebViewContainer({ url, mode }: Props) {
         // Sub-pages keep native left/right (notch/landscape) reservation, but
         // no longer reserve the top inset — every pushed page pads its own
         // header itself using the safe-area values injected above.
-        <SafeAreaView style={styles.fill} edges={["left", "right"]}>
+        <SafeAreaView style={[styles.subScreen, { backgroundColor }]} edges={["left", "right"]}>
           {guardedWebView}
         </SafeAreaView>
       )}
@@ -1129,6 +1147,14 @@ export default function WebViewContainer({ url, mode }: Props) {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  subScreen: {
+    flex: 1,
+    elevation: 28,
+    shadowColor: "#000",
+    shadowOffset: { width: -6, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+  },
   overlay: {
     position: "absolute",
     top: 0,
