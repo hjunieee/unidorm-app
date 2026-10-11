@@ -25,6 +25,7 @@ import {
 } from "expo-router";
 import { useShareIntentContext } from "expo-share-intent";
 import * as WebBrowser from "expo-web-browser";
+import * as ScreenCapture from "expo-screen-capture";
 import notifee from "@notifee/react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -449,6 +450,7 @@ export default function WebViewContainer({ url, mode }: Props) {
   // works whether or not any sub-pages are currently on top of it.
   const goHome = useCallback(
     (path: string) => {
+      void ScreenCapture.allowScreenCaptureAsync().catch(() => {});
       if (router.canGoBack()) {
         try {
           router.dismissAll();
@@ -459,6 +461,22 @@ export default function WebViewContainer({ url, mode }: Props) {
       registry.driveRoot(path);
     },
     [registry, router],
+  );
+
+  // 컨테이너 언마운트 시 잔류할 수 있는 화면 캡처 방지 플래그(FLAG_SECURE) 안전 해제
+  useEffect(() => {
+    return () => {
+      void ScreenCapture.allowScreenCaptureAsync().catch(() => {});
+    };
+  }, []);
+
+  // 서브 스택에서 pop되어 루트 컨테이너로 포커스가 복귀할 때 캡처 방지 해제 보장
+  useFocusEffect(
+    useCallback(() => {
+      if (isRoot) {
+        void ScreenCapture.allowScreenCaptureAsync().catch(() => {});
+      }
+    }, [isRoot])
   );
 
   // 1. push 인텐트를 임시 저장할 Ref 추가
