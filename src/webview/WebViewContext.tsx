@@ -91,10 +91,9 @@ export type WebViewRegistry = {
    * through the shared registry rather than a direct ref.
    */
   driveRoot: (path: string) => void;
-  /** Broadcast a native-initiated token refresh result to every mounted
-   * WebView (root + pushed subs), so the web store/localStorage stays in
-   * sync with whatever the native shell just refreshed on its own. */
-  broadcastTokenInfo: (tokenInfo: TokenInfo) => void;
+  /** Broadcast a native-initiated or cross-WebView token update to mounted
+   * WebViews. If senderId is provided, excludes that sender from receiving the echo. */
+  broadcastTokenInfo: (tokenInfo: TokenInfo, senderId?: string) => void;
   /**
    * Relay a web-originated state-sync snapshot (zustand store / query cache)
    * to every OTHER mounted WebView, excluding the one that sent it. This is
@@ -196,8 +195,12 @@ export function WebViewProvider({ children }: { children: ReactNode }) {
         const root = stackRef.current.find((e) => e.mode === 'root');
         if (root) handlesRef.current.get(root.id)?.navigateSpa(path);
       },
-      broadcastTokenInfo(tokenInfo) {
-        for (const handle of handlesRef.current.values()) handle.sendTokenInfo(tokenInfo);
+      broadcastTokenInfo(tokenInfo, senderId) {
+        for (const [id, handle] of handlesRef.current) {
+          if (!senderId || id !== senderId) {
+            handle.sendTokenInfo(tokenInfo);
+          }
+        }
       },
       relayBroadcastSync(message, senderId) {
         for (const [id, handle] of handlesRef.current) {
