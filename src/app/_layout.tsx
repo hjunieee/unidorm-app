@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import WebViewControllerPanel from "../components/WebViewControllerPanel";
+import { AcademicScraperWebView } from "../agent/AcademicScraperWebView";
 import { checkForUpdate } from "../native/updateCheck";
 import { requestNotificationPermission } from "../push/messaging";
 import { backgroundColorFor } from "../theme";
@@ -40,22 +41,26 @@ export default function RootLayout() {
             <Stack
               screenOptions={{
                 headerShown: false,
+                freezeOnBlur: false,
                 contentStyle: { backgroundColor: contentBackgroundColor },
               }}
             >
               {/* 루트 웹뷰 화면 */}
-              <Stack.Screen name="index" options={{ gestureEnabled: false }} />
+              <Stack.Screen name="index" options={{ gestureEnabled: false, freezeOnBlur: false }} />
               {/* 서브페이지 멀티 웹뷰 화면 */}
               <Stack.Screen
                 name="webview"
                 options={{
                   animation: "ios_from_right",
                   gestureEnabled: true,
+                  freezeOnBlur: false,
                 }}
               />
             </Stack>
             {/* 디버그용 제어 패널 */}
             <WebViewControllerPanel />
+            {/* 숨김 웹뷰: 백그라운드 포털 SSO 및 학적/사생 정보 스크레이퍼 */}
+            <AcademicScraperWebView />
           </WebViewProvider>
         </ShareIntentProvider>
       </KeyboardProvider>

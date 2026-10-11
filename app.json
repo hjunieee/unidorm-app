@@ -46,6 +46,10 @@
             {
               "scheme": "https",
               "host": "unidorm.inuappcenter.kr"
+            },
+            {
+              "scheme": "https",
+              "host": "unidorm-test.pages.dev"
             }
           ],
           "category": [
