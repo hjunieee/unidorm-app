@@ -89,6 +89,7 @@
       "./plugins/withAndroidReleaseSigning",
       "./plugins/withIOSManualSigning",
       "./plugins/withApsEnvironmentProduction",
+      "./plugins/withErpSsoCleartext",
       [
         "expo-share-intent",
         {
