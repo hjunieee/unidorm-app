@@ -1,5 +1,6 @@
 import { Linking } from 'react-native';
 import { router } from 'expo-router';
+import * as ScreenCapture from 'expo-screen-capture';
 import { PortalSecureStore } from './secureStore';
 import { fetchAcademicInfoLocally } from './academicWorker';
 import { executeAgentAction } from './agentActionExecutor';
@@ -180,11 +181,25 @@ export async function handleAgentBridgeMessage(
     case 'setScreenCapturePrevented': {
       const enabled = Boolean(payload?.enabled);
       console.log('[agentBridgeHandler] Screen capture prevention requested:', enabled);
-      sendWrappedResponse({
-        type: 'setScreenCapturePreventedResult',
-        success: true,
-        data: { enabled },
-      });
+      try {
+        if (enabled) {
+          await ScreenCapture.preventScreenCaptureAsync();
+        } else {
+          await ScreenCapture.allowScreenCaptureAsync();
+        }
+        sendWrappedResponse({
+          type: 'setScreenCapturePreventedResult',
+          success: true,
+          data: { enabled },
+        });
+      } catch (err: any) {
+        console.warn('[agentBridgeHandler] Failed to toggle screen capture:', err);
+        sendWrappedResponse({
+          type: 'setScreenCapturePreventedResult',
+          success: false,
+          errorMessage: err?.message,
+        });
+      }
       return true;
     }
 
