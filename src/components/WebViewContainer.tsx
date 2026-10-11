@@ -646,8 +646,31 @@ export default function WebViewContainer({ url, mode }: Props) {
         );
       },
       refreshFcmToken: () => void postFcmToken(),
-      sendTokenInfo: (tokenInfo) =>
-        bridge.channel.send("tokenInfoUpdated", tokenInfo),
+      sendTokenInfo: (tokenInfo) => {
+        bridge.channel.send("tokenInfoUpdated", tokenInfo);
+        // 안전망: 웹 측 브릿지 수신 지연이나 구버전 웹에서도 localStorage 및 이벤트가 동기화되도록 직접 주입
+        const roleStr = (tokenInfo as any).role || "";
+        const tokenScript = `
+          (function() {
+            try {
+              if (window.localStorage) {
+                if (${JSON.stringify(tokenInfo.accessToken)}) {
+                  localStorage.setItem('accessToken', ${JSON.stringify(tokenInfo.accessToken)});
+                  localStorage.setItem('refreshToken', ${JSON.stringify(tokenInfo.refreshToken)});
+                  localStorage.setItem('role', ${JSON.stringify(roleStr)});
+                } else {
+                  localStorage.removeItem('accessToken');
+                  localStorage.removeItem('refreshToken');
+                  localStorage.removeItem('role');
+                }
+              }
+              window.dispatchEvent(new CustomEvent('tokenInfoUpdated', { detail: ${JSON.stringify(tokenInfo)} }));
+            } catch (e) {}
+          })();
+          true;
+        `;
+        webViewRef.current?.injectJavaScript(tokenScript);
+      },
       sendBroadcastSync: (message) =>
         bridge.channel.send("broadcastSyncMessage", message),
     };
@@ -838,6 +861,8 @@ export default function WebViewContainer({ url, mode }: Props) {
         void (tokenInfo.accessToken
           ? saveTokenInfo(tokenInfo)
           : clearTokenInfo());
+        // 다른 활성 웹뷰(특히 백그라운드에 대기 중인 루트 웹뷰)로 변경된 토큰 정보 실시간 브로드캐스트
+        registry.broadcastTokenInfo(tokenInfo, id);
       }),
       // Multi-WebView state sync fallback/second path (see WebViewContext's
       // `relayBroadcastSync` doc comment): relay to every other mounted WebView.
