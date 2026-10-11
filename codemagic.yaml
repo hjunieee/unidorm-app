@@ -2,7 +2,7 @@ workflows:
   ios-dev-adhoc:
     name: iOS Dev Build (Ad-Hoc 무선 설치)
     max_build_duration: 60
-    instance_type: mac_mini_m1
+    instance_type: mac_mini_m2
     integrations:
       app_store_connect: appcenter
     environment:
