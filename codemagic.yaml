@@ -3,6 +3,8 @@ workflows:
     name: iOS Dev Build (Ad-Hoc 무선 설치)
     max_build_duration: 60
     instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: appcenter
     environment:
       node: 24
       xcode: latest
@@ -11,11 +13,6 @@ workflows:
         APP_VARIANT: "development"
         EXPO_PUBLIC_ROOT_URL: "https://unidorm-test.pages.dev"
         BUNDLE_ID: "com.inuappcenter.unidorm.dev"
-      # Codemagic 대시보드 (Teams -> Apple Developer Portal -> App Store Connect API keys)에
-      # 아까 등록한 키를 연동해두면 ios_signing으로 전자동 서명됩니다.
-      ios_signing:
-        distribution_type: ad_hoc
-        bundle_identifier: com.inuappcenter.unidorm.dev
     triggering:
       events:
         - push
@@ -36,14 +33,19 @@ workflows:
           echo "EXPO_PUBLIC_ROOT_URL=$EXPO_PUBLIC_ROOT_URL" > .env.local
           rm -rf "$(node -p 'require("os").tmpdir()')"/metro-*
 
-      - name: 코드 사이닝 프로파일 동기화
-        script: |
-          xcode-project use-profiles
-
       - name: Expo Prebuild (iOS)
         script: |
           export APP_VARIANT="development"
           npx expo prebuild --clean --platform ios
+
+      - name: 코드 사이닝 설정 (Apple Developer Portal 연동)
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_ADHOC \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
 
       - name: iOS IPA 빌드
         script: |
