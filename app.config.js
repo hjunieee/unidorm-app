@@ -1,3 +1,4 @@
+const fs = require("node:fs");
 const { expo } = require("./app.json");
 
 const isDevVariant = process.env.APP_VARIANT === "development";
@@ -11,7 +12,9 @@ module.exports = () => ({
       ...(isDevVariant && {
         bundleIdentifier: "com.inuappcenter.unidorm.dev",
         icon: "./assets/icon-dev.icon",
-        googleServicesFile: "./GoogleService-Info-Dev.plist",
+        googleServicesFile: fs.existsSync("./GoogleService-Info-Dev.plist")
+          ? "./GoogleService-Info-Dev.plist"
+          : "./GoogleService-Info.plist",
         associatedDomains: ["applinks:unidorm-test.pages.dev"],
         infoPlist: {
           ...expo.ios.infoPlist,
