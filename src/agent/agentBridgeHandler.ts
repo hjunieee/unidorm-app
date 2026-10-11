@@ -177,6 +177,17 @@ export async function handleAgentBridgeMessage(
       return true;
     }
 
+    case 'setScreenCapturePrevented': {
+      const enabled = Boolean(payload?.enabled);
+      console.log('[agentBridgeHandler] Screen capture prevention requested:', enabled);
+      sendWrappedResponse({
+        type: 'setScreenCapturePreventedResult',
+        success: true,
+        data: { enabled },
+      });
+      return true;
+    }
+
     default:
       return false;
   }
