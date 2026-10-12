@@ -85,8 +85,18 @@ workflows:
 
       - name: iOS IPA 빌드
         script: |
+          WORKSPACE=$(ls -d ios/*.xcworkspace 2>/dev/null | head -n 1)
+          if [ -z "$WORKSPACE" ]; then
+            echo "❌ .xcworkspace를 찾을 수 없습니다."
+            ls -la ios
+            exit 1
+          fi
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "📦 빌드 대상 워크스페이스: $WORKSPACE"
+          echo "🎯 빌드 대상 스킴: $SCHEME"
           xcode-project build-ipa \
-            --workspace "ios/*.xcworkspace" \
+            --workspace "$WORKSPACE" \
+            --scheme "$SCHEME" \
             --config Release
 
     artifacts:
