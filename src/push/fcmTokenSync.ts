@@ -1,66 +1,53 @@
 /**
- * Registers a rotated FCM token with the backend the moment FCM reissues it
- * (`onTokenRefresh`), independent of any WebView being mounted or foreground —
- * `postFcmToken`'s existing bridge-based path (`WebViewContainer.tsx`) only
- * fires while a WebView is alive and interactive, which a background/killed
- * token rotation never is.
+ * Relays rotated FCM tokens to active WebView container(s).
  *
- * `tryRegisterFcmToken` calling `POST /api/tokens` immediately is the primary
- * path. `pendingToken` only exists as a fallback for when that immediate
- * attempt fails (no session yet, or a network/server error) — it's flushed
- * from the existing WebView survival points (`postFcmToken`'s onLoadEnd /
- * loginSuccess / foreground-resume / manual refresh) so a failed background
- * registration still gets one more shot for free.
+ * In UNIDorm's web-centered architecture, the web SPA (UNIDorm-web) owns
+ * session authentication and registers FCM tokens with the backend
+ * (via window.onReceiveFcmToken -> POST /fcm/token).
+ *
+ * This module listens to Firebase's `onTokenRefresh` and broadcasts
+ * the new token to active WebViews, eliminating native direct HTTP calls
+ * and preventing duplicate registration race conditions.
  */
-import { Platform } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
-import { API_BASE_URL } from '../config/env';
-import { getValidAccessToken } from '../native/authTokens';
 
-async function postFcmTokenToBackend(token: string, accessToken: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/fcm/token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ fcmToken: token }),
-    });
-    return res.ok;
-  } catch (err) {
-    console.warn('[fcmTokenSync] POST /fcm/token failed', err);
-    return false;
-  }
-}
+type TokenRefreshListener = (token: string) => void;
 
-let pendingToken: string | null = null;
-
-async function tryRegisterFcmToken(token: string): Promise<void> {
-  const accessToken = await getValidAccessToken();
-  if (!accessToken) {
-    // Not logged in via the native shell yet — retried once a session exists.
-    pendingToken = token;
-    return;
-  }
-  const ok = await postFcmTokenToBackend(token, accessToken);
-  pendingToken = ok ? null : token;
-}
-
+const listeners = new Set<TokenRefreshListener>();
+let latestRotatedToken: string | null = null;
 let rotationRegistered = false;
 
-/** Registers the `onTokenRefresh` listener once. Call from
- * `registerBackgroundHandlers()` so it's active before React renders. */
+/**
+ * Subscribe to FCM token rotation events.
+ * Returns an unsubscribe callback.
+ */
+export function onFcmTokenRefresh(listener: TokenRefreshListener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Returns the most recently rotated FCM token, if any. */
+export function getLatestRotatedToken(): string | null {
+  return latestRotatedToken;
+}
+
+/**
+ * Registers the `onTokenRefresh` listener once.
+ * Called from `registerBackgroundHandlers()` so it is active before React renders.
+ */
 export function registerFcmTokenRotationListener(): void {
   if (rotationRegistered) return;
   rotationRegistered = true;
   messaging().onTokenRefresh((token) => {
-    void tryRegisterFcmToken(token);
+    latestRotatedToken = token;
+    listeners.forEach((listener) => {
+      try {
+        listener(token);
+      } catch (err) {
+        console.warn('[fcmTokenSync] listener error', err);
+      }
+    });
   });
-}
-
-/** Retries a previously-failed registration. No-op if the last attempt
- * succeeded (or none has happened yet). */
-export function flushPendingFcmToken(): void {
-  if (pendingToken) void tryRegisterFcmToken(pendingToken);
 }

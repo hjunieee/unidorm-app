@@ -69,7 +69,7 @@ import { handleAgentBridgeMessage } from "../agent/agentBridgeHandler";
 import { ensureLocationPermission } from "../native/permissions";
 import { clearTokenInfo, readTokenInfo, saveTokenInfo } from "../native/secureTokenStore";
 import { shareContent } from "../native/share";
-import { flushPendingFcmToken } from "../push/fcmTokenSync";
+import { onFcmTokenRefresh } from "../push/fcmTokenSync";
 import {
   getFcmTokenWithRetry,
   getInitialNavIntent,
@@ -388,7 +388,6 @@ export default function WebViewContainer({ url, mode }: Props) {
       bridge.channel.send("receiveFcmToken", token);
       registry.mergeSession({ fcmToken: token });
     }
-    flushPendingFcmToken();
   }, [bridge, registry]);
 
   const navigateSpa = useCallback(
@@ -558,6 +557,12 @@ export default function WebViewContainer({ url, mode }: Props) {
 
     const unsubForeground = setupForegroundNotifications();
     const unsubOpen = subscribeNotificationOpen(handleNavIntent);
+    const unsubTokenRefresh = onFcmTokenRefresh((newToken) => {
+      const script = buildReceiveFcmTokenScript(newToken);
+      webViewRef.current?.injectJavaScript(script);
+      bridge.channel.send("receiveFcmToken", newToken);
+      registry.mergeSession({ fcmToken: newToken });
+    });
     // Cold-start deep link: same branching as a live tap.
     void getInitialNavIntent().then((intent) => {
       if (intent) handleNavIntent(intent);
@@ -571,6 +576,7 @@ export default function WebViewContainer({ url, mode }: Props) {
     return () => {
       unsubForeground();
       unsubOpen();
+      unsubTokenRefresh();
       appStateSub.remove();
       clearTimeout(timeout);
     };

@@ -1,13 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
-global.fetch = mockFetch;
-
-const mockGetValidAccessToken = jest.fn<() => Promise<string | null>>();
-jest.mock('../../native/authTokens', () => ({
-  getValidAccessToken: () => mockGetValidAccessToken(),
-}));
-
 let tokenRefreshCallback: ((token: string) => void) | null = null;
 jest.mock('@react-native-firebase/messaging', () => {
   const api = {
@@ -19,59 +11,56 @@ jest.mock('@react-native-firebase/messaging', () => {
   return { __esModule: true, default: () => api };
 });
 
-describe('fcmTokenSync', () => {
+describe('fcmTokenSync (Web Unification)', () => {
   beforeEach(() => {
     jest.resetModules();
-    mockFetch.mockReset();
-    mockGetValidAccessToken.mockReset();
     tokenRefreshCallback = null;
   });
 
-  it('posts rotated FCM token to /fcm/token with Bearer token and fcmToken body', async () => {
-    mockGetValidAccessToken.mockResolvedValue('jwt-token-123');
-    mockFetch.mockResolvedValue({ ok: true } as Response);
-
+  it('notifies registered listeners and records latest rotated token', () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { registerFcmTokenRotationListener } = require('../fcmTokenSync') as typeof import('../fcmTokenSync');
+    const {
+      registerFcmTokenRotationListener,
+      onFcmTokenRefresh,
+      getLatestRotatedToken,
+    } = require('../fcmTokenSync') as typeof import('../fcmTokenSync');
+
+    const listener = jest.fn();
+    const unsub = onFcmTokenRefresh(listener);
+
     registerFcmTokenRotationListener();
 
     expect(tokenRefreshCallback).not.toBeNull();
-    tokenRefreshCallback!('new-fcm-token');
+    tokenRefreshCallback!('rotated-token-123');
 
-    // Wait for the async tryRegisterFcmToken to resolve
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(listener).toHaveBeenCalledWith('rotated-token-123');
+    expect(getLatestRotatedToken()).toBe('rotated-token-123');
 
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toContain('/fcm/token');
-    expect(init?.method).toBe('POST');
-    expect((init?.headers as Record<string, string>)?.['Authorization']).toBe('Bearer jwt-token-123');
-    expect(JSON.parse(init?.body as string)).toEqual({ fcmToken: 'new-fcm-token' });
+    unsub();
+    tokenRefreshCallback!('rotated-token-456');
+    expect(listener).toHaveBeenCalledTimes(1); // not called again after unsub
+    expect(getLatestRotatedToken()).toBe('rotated-token-456');
   });
 
-  it('queues pending token when logged out and flushes upon flushPendingFcmToken', async () => {
-    mockGetValidAccessToken.mockResolvedValueOnce(null); // not logged in
-
+  it('safely handles errors in subscriber callbacks without crashing', () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { registerFcmTokenRotationListener, flushPendingFcmToken } = require('../fcmTokenSync') as typeof import('../fcmTokenSync');
+    const {
+      registerFcmTokenRotationListener,
+      onFcmTokenRefresh,
+    } = require('../fcmTokenSync') as typeof import('../fcmTokenSync');
+
+    const faultyListener = jest.fn(() => {
+      throw new Error('boom');
+    });
+    const goodListener = jest.fn();
+
+    onFcmTokenRefresh(faultyListener);
+    onFcmTokenRefresh(goodListener);
+
     registerFcmTokenRotationListener();
+    tokenRefreshCallback!('token-abc');
 
-    tokenRefreshCallback!('queued-token');
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(mockFetch).not.toHaveBeenCalled();
-
-    // Now user logs in, flush pending token
-    mockGetValidAccessToken.mockResolvedValue('jwt-after-login');
-    mockFetch.mockResolvedValue({ ok: true } as Response);
-
-    flushPendingFcmToken();
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toContain('/fcm/token');
-    expect((init?.headers as Record<string, string>)?.['Authorization']).toBe('Bearer jwt-after-login');
-    expect(JSON.parse(init?.body as string)).toEqual({ fcmToken: 'queued-token' });
+    expect(faultyListener).toHaveBeenCalledWith('token-abc');
+    expect(goodListener).toHaveBeenCalledWith('token-abc');
   });
 });
