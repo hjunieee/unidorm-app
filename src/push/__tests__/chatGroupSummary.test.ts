@@ -138,3 +138,15 @@ it('still shows a data-only general push that has text', async () => {
   await receiveRaw({ messageId: 'gen-1', data: { title: '공지', body: '내용' } });
   expect(displayedIds()).toEqual(['gen-1']);
 });
+
+it('chatRoomIdOf extracts room id for all chat types and numeric ids', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { chatRoomIdOf } = require('../messaging') as typeof import('../messaging');
+  expect(chatRoomIdOf({ type: 'CHAT', chatRoomId: '10' })).toBe('10');
+  expect(chatRoomIdOf({ type: 'CHAT_OPEN', chatRoomId: '20' })).toBe('20');
+  expect(chatRoomIdOf({ type: 'CHAT_PERSONAL', chatRoomId: '30' })).toBe('30');
+  expect(chatRoomIdOf({ type: 'CHAT_ROOMMATE', chatRoomId: '40' })).toBe('40');
+  expect(chatRoomIdOf({ type: 'CHAT_OPEN', chatRoomId: 50 })).toBe('50');
+  expect(chatRoomIdOf({ type: 'ANNOUNCEMENT', chatRoomId: '60' })).toBeNull();
+  expect(chatRoomIdOf(undefined)).toBeNull();
+});

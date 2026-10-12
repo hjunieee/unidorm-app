@@ -16,6 +16,7 @@ export type NotificationType =
   | 'CHAT'
   | 'CHAT_OPEN'
   | 'CHAT_PERSONAL'
+  | 'CHAT_ROOMMATE'
   | 'ANNOUNCEMENT'
   | 'NOTICE'
   | 'COMPLAINT'
@@ -51,6 +52,10 @@ const ROUTE_MAP: Partial<Record<NotificationType, RouteBuilder>> = {
   CHAT_PERSONAL: (data) => {
     const id = extractId(data);
     return id ? `/chat/open/${id}` : undefined;
+  },
+  CHAT_ROOMMATE: (data) => {
+    const id = extractId(data);
+    return id ? `/roommate/chat/${id}` : undefined;
   },
   ANNOUNCEMENT: (data) => {
     const id = extractId(data);
