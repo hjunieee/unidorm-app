@@ -1,6 +1,6 @@
 workflows:
-  ios-dev-adhoc:
-    name: iOS Dev Build (Ad-Hoc 무선 설치)
+  ios-dev-testflight:
+    name: iOS Dev TestFlight (TestFlight 자동 배포)
     max_build_duration: 60
     instance_type: mac_mini_m2
     integrations:
@@ -9,8 +9,6 @@ workflows:
       node: 24
       xcode: latest
       cocoapods: default
-      # Codemagic 웹 UI > 앱 설정 > Environment variables 에 만든 그룹.
-      # CERTIFICATE_PRIVATE_KEY (Secret) 를 담고 있어야 서명 파일을 받을 수 있다.
       groups:
         - ios_signing
       vars:
@@ -21,8 +19,132 @@ workflows:
       events:
         - push
       branch_patterns:
-        - pattern: '*'
+        - pattern: 'main'
           include: true
+    scripts:
+      - name: 서브모듈 초기화
+        script: |
+          git submodule update --init --recursive
+
+      - name: 의존성 설치
+        script: |
+          npm ci
+
+      - name: 환경 변수 및 포털 URL 설정
+        script: |
+          echo "EXPO_PUBLIC_ROOT_URL=$EXPO_PUBLIC_ROOT_URL" > .env.local
+          rm -rf "$(node -p 'require("os").tmpdir()')"/metro-*
+
+      - name: Firebase 설정 파일(GoogleService-Info-Dev.plist) 생성
+        script: |
+          cat << 'EOF' > GoogleService-Info-Dev.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>API_KEY</key>
+            <string>AIzaSyC02OSjePn8XuEbU1FMsBYMj78PHDG1Wgc</string>
+            <key>GCM_SENDER_ID</key>
+            <string>495990333760</string>
+            <key>PLIST_VERSION</key>
+            <string>1</string>
+            <key>BUNDLE_ID</key>
+            <string>com.inuappcenter.unidorm.dev</string>
+            <key>PROJECT_ID</key>
+            <string>uni-dorm</string>
+            <key>STORAGE_BUCKET</key>
+            <string>uni-dorm.firebasestorage.app</string>
+            <key>IS_ADS_ENABLED</key>
+            <false></false>
+            <key>IS_ANALYTICS_ENABLED</key>
+            <false></false>
+            <key>IS_APPINVITE_ENABLED</key>
+            <true></true>
+            <key>IS_GCM_ENABLED</key>
+            <true></true>
+            <key>IS_SIGNIN_ENABLED</key>
+            <true></true>
+            <key>GOOGLE_APP_ID</key>
+            <string>1:495990333760:ios:1dd800c44d8b2b306cdaa5</string>
+          </dict>
+          </plist>
+          EOF
+          cp GoogleService-Info-Dev.plist GoogleService-Info.plist
+
+      - name: Expo Prebuild (iOS)
+        script: |
+          export APP_VARIANT="development"
+          export EXPO_IOS_BUILD_NUMBER="$(($BUILD_NUMBER + 15))"
+          echo "🔢 빌드 번호 설정: $EXPO_IOS_BUILD_NUMBER"
+          npx expo prebuild --clean --platform ios
+
+      - name: 코드 사이닝 설정 (Apple Developer Portal 연동)
+        script: |
+          set -euo pipefail
+
+          if [ -z "${CERTIFICATE_PRIVATE_KEY:-}" ]; then
+            echo "❌ [오류] CERTIFICATE_PRIVATE_KEY 환경 변수가 설정되지 않았습니다."
+            echo "Codemagic 웹 콘솔 > Environment variables 에서 'ios_signing' 그룹으로 CERTIFICATE_PRIVATE_KEY 를 등록해주세요."
+            exit 1
+          fi
+
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles \
+            --project "ios/app.xcodeproj" \
+            --archive-method app-store
+
+      - name: iOS 빌드 번호 보정 (agvtool)
+        script: |
+          cd ios
+          agvtool new-version -all $(($BUILD_NUMBER + 15)) || echo "agvtool 건너뜀 (Expo 설정값 적용됨)"
+
+      - name: iOS IPA 빌드 (App Store / TestFlight용)
+        script: |
+          set -euo pipefail
+          WORKSPACE=$(ls -d ios/*.xcworkspace 2>/dev/null | head -n 1)
+          if [ -z "$WORKSPACE" ]; then
+            echo "❌ .xcworkspace를 찾을 수 없습니다."
+            ls -la ios
+            exit 1
+          fi
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "📦 빌드 대상 워크스페이스: $WORKSPACE"
+          echo "🎯 빌드 대상 스킴: $SCHEME"
+          xcode-project build-ipa \
+            --workspace "$WORKSPACE" \
+            --scheme "$SCHEME" \
+            --config Release
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
+
+  ios-dev-adhoc:
+    name: iOS Dev Build (Ad-Hoc 무선 설치)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: appcenter
+    environment:
+      node: 24
+      xcode: latest
+      cocoapods: default
+      groups:
+        - ios_signing
+      vars:
+        APP_VARIANT: "development"
+        EXPO_PUBLIC_ROOT_URL: "https://unidorm-test.pages.dev"
+        BUNDLE_ID: "com.inuappcenter.unidorm.dev"
     scripts:
       - name: 서브모듈 초기화
         script: |
