@@ -10,12 +10,12 @@ describe("withErpSsoCleartext Expo Config Plugin", () => {
 
     // withInfoPlist 모의 실행
     jest.mock("expo/config-plugins", () => ({
-      withInfoPlist: (config, action) => {
+      withInfoPlist: (config: any, action: any) => {
         infoPlistModifier = action;
         return config;
       },
-      withAndroidManifest: (config) => config,
-      withDangerousMod: (config) => config,
+      withAndroidManifest: (config: any) => config,
+      withDangerousMod: (config: any) => config,
     }));
 
     // 플러그인 실행
@@ -24,19 +24,19 @@ describe("withErpSsoCleartext Expo Config Plugin", () => {
     // 모디파이어가 함수인지 확인 후 테스트 실행
     const initialConfig = {
       modResults: {
-        NSAppTransportSecurity: {},
+        NSAppTransportSecurity: {} as Record<string, any>,
       },
     };
 
     // 플러그인의 iOS Info.plist 변환 로직 직접 검증
     const transformed = {
       modResults: {
-        NSAppTransportSecurity: {},
+        NSAppTransportSecurity: {} as Record<string, any>,
       },
     };
 
-    const ats = transformed.modResults.NSAppTransportSecurity || {};
-    const exceptions = ats.NSExceptionDomains || {};
+    const ats = (transformed.modResults.NSAppTransportSecurity || {}) as Record<string, any>;
+    const exceptions = (ats.NSExceptionDomains || {}) as Record<string, any>;
     const CLEARTEXT_HOSTS = ["portal.inu.ac.kr", "erp.inu.ac.kr"];
 
     for (const host of CLEARTEXT_HOSTS) {
