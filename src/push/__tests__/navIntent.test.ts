@@ -137,6 +137,42 @@ describe('resolveNavIntent', () => {
       });
     });
 
+    it('COMPLAINT: complaintId key -> /complain/{id}', () => {
+      const data = { type: 'COMPLAINT', complaintId: '404' };
+      expect(resolveNavIntent(data)).toEqual({
+        kind: 'push',
+        path: '/complain/404',
+        url: portalUrlFor('/complain/404'),
+      });
+    });
+
+    it('ROOMMATE_POST: roommatePostId key -> /roommate/list/{id}', () => {
+      const data = { type: 'ROOMMATE_POST', roommatePostId: '505' };
+      expect(resolveNavIntent(data)).toEqual({
+        kind: 'push',
+        path: '/roommate/list/505',
+        url: portalUrlFor('/roommate/list/505'),
+      });
+    });
+
+    it('targetId universal key: resolves correctly across domains when unified', () => {
+      expect(resolveNavIntent({ type: 'CHAT', targetId: '901' })).toEqual({
+        kind: 'push',
+        path: '/chat/open/901',
+        url: portalUrlFor('/chat/open/901'),
+      });
+      expect(resolveNavIntent({ type: 'ANNOUNCEMENT', targetId: '902' })).toEqual({
+        kind: 'push',
+        path: '/announcements/902',
+        url: portalUrlFor('/announcements/902'),
+      });
+      expect(resolveNavIntent({ type: 'COMPLAINT', targetId: '903' })).toEqual({
+        kind: 'push',
+        path: '/complain/903',
+        url: portalUrlFor('/complain/903'),
+      });
+    });
+
     it('FRIEND: portal path, non-main-tab -> push', () => {
       const data = { type: 'FRIEND', path: '/friend/list', targetId: 'me' };
       expect(resolveNavIntent(data)).toEqual({

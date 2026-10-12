@@ -139,13 +139,16 @@ it('still shows a data-only general push that has text', async () => {
   expect(displayedIds()).toEqual(['gen-1']);
 });
 
-it('chatRoomIdOf extracts room id for all chat types and numeric ids', () => {
+it('chatRoomIdOf extracts room id for all chat types, numeric ids, and targetId', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { chatRoomIdOf } = require('../messaging') as typeof import('../messaging');
   expect(chatRoomIdOf({ type: 'CHAT', chatRoomId: '10' })).toBe('10');
+  expect(chatRoomIdOf({ type: 'CHAT', targetId: '15' })).toBe('15');
   expect(chatRoomIdOf({ type: 'CHAT_OPEN', chatRoomId: '20' })).toBe('20');
+  expect(chatRoomIdOf({ type: 'CHAT_OPEN', targetId: 25 })).toBe('25');
   expect(chatRoomIdOf({ type: 'CHAT_PERSONAL', chatRoomId: '30' })).toBe('30');
   expect(chatRoomIdOf({ type: 'CHAT_ROOMMATE', chatRoomId: '40' })).toBe('40');
+  expect(chatRoomIdOf({ type: 'CHAT_ROOMMATE', targetId: '45' })).toBe('45');
   expect(chatRoomIdOf({ type: 'CHAT_OPEN', chatRoomId: 50 })).toBe('50');
   expect(chatRoomIdOf({ type: 'ANNOUNCEMENT', chatRoomId: '60' })).toBeNull();
   expect(chatRoomIdOf(undefined)).toBeNull();

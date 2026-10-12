@@ -34,7 +34,12 @@ type RouteBuilder = (data: Record<string, unknown>) => string | undefined;
 
 function extractId(data: Record<string, unknown>): string | undefined {
   const candidate =
-    data.targetId ?? data.chatRoomId ?? data.noticeId ?? data.id;
+    data.targetId ??
+    data.chatRoomId ??
+    data.noticeId ??
+    data.complaintId ??
+    data.roommatePostId ??
+    data.id;
   if (typeof candidate === 'string' && candidate.trim() !== '') return candidate.trim();
   if (typeof candidate === 'number') return String(candidate);
   return undefined;

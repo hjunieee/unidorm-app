@@ -129,9 +129,9 @@ export function chatRoomIdOf(data?: Record<string, unknown>): string | null {
     type === 'CHAT_PERSONAL' ||
     type === 'CHAT_ROOMMATE';
   if (!isChat) return null;
-  const chatRoomId = data.chatRoomId;
-  if (typeof chatRoomId === 'string' && chatRoomId.trim() !== '') return chatRoomId.trim();
-  if (typeof chatRoomId === 'number') return String(chatRoomId);
+  const candidate = data.targetId ?? data.chatRoomId;
+  if (typeof candidate === 'string' && candidate.trim() !== '') return candidate.trim();
+  if (typeof candidate === 'number') return String(candidate);
   return null;
 }
 

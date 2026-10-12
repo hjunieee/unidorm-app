@@ -934,7 +934,14 @@ export default function WebViewContainer({ url, mode }: Props) {
               const d = n.notification.data;
               if (
                 (targetPath && d?.path === targetPath) ||
-                (targetId && (d?.targetId === targetId || d?.chatRoomId === targetId || d?.noticeId === targetId))
+                (targetId && (
+                  d?.targetId === targetId ||
+                  d?.chatRoomId === targetId ||
+                  d?.noticeId === targetId ||
+                  d?.complaintId === targetId ||
+                  d?.roommatePostId === targetId ||
+                  d?.id === targetId
+                ))
               ) {
                 if (n.id) notifee.cancelNotification(n.id).catch(() => {});
               }
