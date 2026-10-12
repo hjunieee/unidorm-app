@@ -60,7 +60,7 @@ const ROUTE_MAP: Partial<Record<NotificationType, RouteBuilder>> = {
   },
   CHAT_ROOMMATE: (data) => {
     const id = extractId(data);
-    return id ? `/roommate/chat/${id}` : undefined;
+    return id ? `/chat/roommate/${id}` : undefined;
   },
   ANNOUNCEMENT: (data) => {
     const id = extractId(data);

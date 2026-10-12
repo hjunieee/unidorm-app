@@ -136,7 +136,7 @@ describe('FCM 서버 페이로드 연동 및 targetId 전수 기능 검증', () 
       expect(chatRoomIdOf(serverPayload)).toBe('401');
     });
 
-    it('룸메이트 채팅 (CHAT_ROOMMATE): chatRoomId 기반 라우팅 및 그룹화 ID 추출', () => {
+    it('룸메이트 채팅 (CHAT_ROOMMATE): 서버 레거시 path(/roommate/chat/501) 유입 시에도 웹 실제 라우트(/chat/roommate/501)로 자동 정규화', () => {
       const serverPayload = {
         type: 'CHAT_ROOMMATE',
         chatRoomId: '501',
@@ -144,10 +144,22 @@ describe('FCM 서버 페이로드 연동 및 targetId 전수 기능 검증', () 
       };
       expect(resolveNavIntent(serverPayload)).toEqual({
         kind: 'push',
-        path: '/roommate/chat/501',
-        url: portalUrlFor('/roommate/chat/501'),
+        path: '/chat/roommate/501',
+        url: portalUrlFor('/chat/roommate/501'),
       });
       expect(chatRoomIdOf(serverPayload)).toBe('501');
+    });
+
+    it('룸메이트 채팅 (CHAT_ROOMMATE): path 누락 시에도 routeMap에서 /chat/roommate/501로 정상 복원', () => {
+      const payloadWithoutPath = {
+        type: 'CHAT_ROOMMATE',
+        chatRoomId: '501',
+      };
+      expect(resolveNavIntent(payloadWithoutPath)).toEqual({
+        kind: 'push',
+        path: '/chat/roommate/501',
+        url: portalUrlFor('/chat/roommate/501'),
+      });
     });
   });
 
@@ -166,15 +178,15 @@ describe('FCM 서버 페이로드 연동 및 targetId 전수 기능 검증', () 
       expect(chatRoomIdOf(unifiedChatPayload)).toBe('777');
     });
 
-    it('targetId만 단독으로 들어오는 룸메이트 채팅 알림: 라우팅 및 그룹화 동시 성공', () => {
+    it('targetId만 단독으로 들어오는 룸메이트 채팅 알림: /chat/roommate/888 라우팅 및 그룹화 동시 성공', () => {
       const unifiedRoommateChatPayload = {
         type: 'CHAT_ROOMMATE',
         targetId: '888',
       };
       expect(resolveNavIntent(unifiedRoommateChatPayload)).toEqual({
         kind: 'push',
-        path: '/roommate/chat/888',
-        url: portalUrlFor('/roommate/chat/888'),
+        path: '/chat/roommate/888',
+        url: portalUrlFor('/chat/roommate/888'),
       });
       expect(chatRoomIdOf(unifiedRoommateChatPayload)).toBe('888');
     });

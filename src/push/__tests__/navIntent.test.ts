@@ -110,12 +110,12 @@ describe('resolveNavIntent', () => {
       });
     });
 
-    it('CHAT_ROOMMATE: portal path to roommate chat -> /roommate/chat/{id}', () => {
+    it('CHAT_ROOMMATE: portal path to roommate chat -> /chat/roommate/{id}', () => {
       const data = { type: 'CHAT_ROOMMATE', chatRoomId: '101' };
       expect(resolveNavIntent(data)).toEqual({
         kind: 'push',
-        path: '/roommate/chat/101',
-        url: portalUrlFor('/roommate/chat/101'),
+        path: '/chat/roommate/101',
+        url: portalUrlFor('/chat/roommate/101'),
       });
     });
 

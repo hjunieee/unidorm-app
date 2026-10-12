@@ -17,10 +17,21 @@ export function extractCandidate(data?: Record<string, unknown>): string | null 
 export function extractNavPath(data?: Record<string, unknown>): string | null {
   const candidate = extractCandidate(data);
   if (!candidate) return null;
-  if (candidate.startsWith('/')) return candidate;
+  if (candidate.startsWith('/')) {
+    if (candidate.startsWith('/roommate/chat/')) {
+      return candidate.replace('/roommate/chat/', '/chat/roommate/');
+    }
+    return candidate;
+  }
   try {
     const u = new URL(candidate);
-    if (u.host === PORTAL_HOST) return u.pathname + u.search;
+    if (u.host === PORTAL_HOST) {
+      const path = u.pathname + u.search;
+      if (path.startsWith('/roommate/chat/')) {
+        return path.replace('/roommate/chat/', '/chat/roommate/');
+      }
+      return path;
+    }
   } catch {
     /* not a URL */
   }
