@@ -9,9 +9,6 @@ workflows:
       node: 24
       xcode: latest
       cocoapods: default
-      ios_signing:
-        distribution_type: ad_hoc
-        bundle_identifier: com.inuappcenter.unidorm.dev
       vars:
         APP_VARIANT: "development"
         EXPO_PUBLIC_ROOT_URL: "https://unidorm-test.pages.dev"
@@ -102,7 +99,8 @@ workflows:
           xcode-project build-ipa \
             --workspace "$WORKSPACE" \
             --scheme "$SCHEME" \
-            --config Release
+            --config Release \
+            --archive-xcargs "CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=AANGG4Q668"
 
     artifacts:
       - build/ios/ipa/*.ipa
