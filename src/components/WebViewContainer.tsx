@@ -94,6 +94,7 @@ import {
   buildEdgeGuardBandScript,
   buildEdgeGuardDiagnosticsScript,
   buildEdgeLongPressGuardScript,
+  buildReceiveFcmTokenScript,
   buildSafeAreaInsetsScript,
   INJECTED_SCRIPT,
   isGeoPermissionRequest,
@@ -380,6 +381,10 @@ export default function WebViewContainer({ url, mode }: Props) {
   const postFcmToken = useCallback(async () => {
     const token = await getFcmTokenWithRetry();
     if (token) {
+      // 1. 구버전 네이티브(iOS/Android) 호환 웹뷰 스크립트 직접 주입
+      const script = buildReceiveFcmTokenScript(token);
+      webViewRef.current?.injectJavaScript(script);
+      // 2. 신규 브릿지 채널 발송 및 세션 상태 동기화
       bridge.channel.send("receiveFcmToken", token);
       registry.mergeSession({ fcmToken: token });
     }

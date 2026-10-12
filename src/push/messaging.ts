@@ -120,10 +120,19 @@ export async function getFcmTokenWithRetry(retries = 3, delayMs = 1000): Promise
 }
 
 /** The chat room this payload belongs to, or null if it isn't a chat push. */
-function chatRoomIdOf(data?: Record<string, unknown>): string | null {
-  if (!data || data.type !== 'CHAT') return null;
+export function chatRoomIdOf(data?: Record<string, unknown>): string | null {
+  if (!data) return null;
+  const type = data.type;
+  const isChat =
+    type === 'CHAT' ||
+    type === 'CHAT_OPEN' ||
+    type === 'CHAT_PERSONAL' ||
+    type === 'CHAT_ROOMMATE';
+  if (!isChat) return null;
   const chatRoomId = data.chatRoomId;
-  return typeof chatRoomId === 'string' && chatRoomId !== '' ? chatRoomId : null;
+  if (typeof chatRoomId === 'string' && chatRoomId.trim() !== '') return chatRoomId.trim();
+  if (typeof chatRoomId === 'number') return String(chatRoomId);
+  return null;
 }
 
 /** True when the message carries anything a notification could show. */

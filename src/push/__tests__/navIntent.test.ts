@@ -110,6 +110,33 @@ describe('resolveNavIntent', () => {
       });
     });
 
+    it('CHAT_ROOMMATE: portal path to roommate chat -> /roommate/chat/{id}', () => {
+      const data = { type: 'CHAT_ROOMMATE', chatRoomId: '101' };
+      expect(resolveNavIntent(data)).toEqual({
+        kind: 'push',
+        path: '/roommate/chat/101',
+        url: portalUrlFor('/roommate/chat/101'),
+      });
+    });
+
+    it('CHAT_OPEN: portal path to open chat -> /chat/open/{id}', () => {
+      const data = { type: 'CHAT_OPEN', chatRoomId: '202' };
+      expect(resolveNavIntent(data)).toEqual({
+        kind: 'push',
+        path: '/chat/open/202',
+        url: portalUrlFor('/chat/open/202'),
+      });
+    });
+
+    it('CHAT_PERSONAL: portal path to personal chat -> /chat/open/{id}', () => {
+      const data = { type: 'CHAT_PERSONAL', chatRoomId: '303' };
+      expect(resolveNavIntent(data)).toEqual({
+        kind: 'push',
+        path: '/chat/open/303',
+        url: portalUrlFor('/chat/open/303'),
+      });
+    });
+
     it('FRIEND: portal path, non-main-tab -> push', () => {
       const data = { type: 'FRIEND', path: '/friend/list', targetId: 'me' };
       expect(resolveNavIntent(data)).toEqual({

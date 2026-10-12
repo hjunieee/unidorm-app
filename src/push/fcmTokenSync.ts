@@ -17,21 +17,19 @@ import messaging from '@react-native-firebase/messaging';
 import { API_BASE_URL } from '../config/env';
 import { getValidAccessToken } from '../native/authTokens';
 
-function deviceType(): string {
-  // Matches inu-portal-web's getFcmDeviceType() convention ('ANDROID'/'IOS').
-  return Platform.OS === 'ios' ? 'IOS' : 'ANDROID';
-}
-
 async function postFcmTokenToBackend(token: string, accessToken: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/tokens`, {
+    const res = await fetch(`${API_BASE_URL}/fcm/token`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Auth: accessToken },
-      body: JSON.stringify({ token, deviceType: deviceType() }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ fcmToken: token }),
     });
     return res.ok;
   } catch (err) {
-    console.warn('[fcmTokenSync] POST /api/tokens failed', err);
+    console.warn('[fcmTokenSync] POST /fcm/token failed', err);
     return false;
   }
 }
