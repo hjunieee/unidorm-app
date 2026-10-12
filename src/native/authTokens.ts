@@ -53,16 +53,26 @@ async function doRefresh(stored: TokenInfo): Promise<TokenInfo | null> {
     return null;
   }
   try {
-    const res = await fetch(`${API_BASE_URL}/api/members/refresh`, {
+    const res = await fetch(`${API_BASE_URL}/users/refreshToken`, {
       method: 'POST',
-      headers: { refresh: stored.refreshToken },
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: `Bearer ${stored.refreshToken}` }),
     });
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) await clearTokenInfo();
       return null;
     }
     const body = await res.json();
-    const newTokenInfo: TokenInfo = body.data;
+    const accessToken = body.accessToken ?? body.data?.accessToken;
+    const refreshToken = body.refreshToken ?? body.data?.refreshToken ?? stored.refreshToken;
+    if (!accessToken) {
+      return null;
+    }
+    const newTokenInfo: TokenInfo = {
+      ...stored,
+      accessToken,
+      refreshToken,
+    };
     await saveTokenInfo(newTokenInfo);
     listener?.(newTokenInfo);
     return newTokenInfo;
