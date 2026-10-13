@@ -10,9 +10,6 @@
       "bundleIdentifier": "com.inuappcenter.unidorm",
       "buildNumber": "13",
       "supportsTablet": true,
-      "associatedDomains": [
-        "applinks:unidorm.inuappcenter.kr"
-      ],
       "googleServicesFile": "./GoogleService-Info.plist",
       "icon": "./assets/expo.icon",
       "entitlements": {
