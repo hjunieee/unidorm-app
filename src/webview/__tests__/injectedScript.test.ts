@@ -29,3 +29,12 @@ describe('edge guard script', () => {
     expect(() => new Function(buildEdgeGuardBandScript(24, 0))).not.toThrow();
   });
 });
+
+describe('permission request markers', () => {
+  it('detects camera permission marker JSON', () => {
+    const { isCameraPermissionRequest, CAMERA_REQUEST_MARKER } = require('../injectedScript');
+    expect(isCameraPermissionRequest(JSON.stringify({ [CAMERA_REQUEST_MARKER]: true }))).toBe(true);
+    expect(isCameraPermissionRequest(JSON.stringify({ other: 123 }))).toBe(false);
+    expect(isCameraPermissionRequest('not-json')).toBe(false);
+  });
+});
