@@ -31,6 +31,12 @@
 export const GEO_REQUEST_MARKER = '__intipGeoRequested';
 
 /**
+ * Out-of-band marker for a lazy camera-permission-priming ping.
+ * Intercepted (and swallowed) in `WebViewContainer`'s `onMessage` before the channel sees it.
+ */
+export const CAMERA_REQUEST_MARKER = '__intipCameraRequested';
+
+/**
  * True when `raw` is the geolocation-priming ping posted by the patch
  * installed in `INJECTED_SCRIPT` below.
  */
@@ -39,6 +45,20 @@ export function isGeoPermissionRequest(raw: string): boolean {
   try {
     const data = JSON.parse(raw);
     return typeof data === 'object' && data !== null && GEO_REQUEST_MARKER in data;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True when `raw` is the camera-priming ping posted by the patch
+ * or bridge installed in `INJECTED_SCRIPT` below.
+ */
+export function isCameraPermissionRequest(raw: string): boolean {
+  if (!raw.includes(CAMERA_REQUEST_MARKER)) return false;
+  try {
+    const data = JSON.parse(raw);
+    return typeof data === 'object' && data !== null && CAMERA_REQUEST_MARKER in data;
   } catch {
     return false;
   }
@@ -80,6 +100,11 @@ export function buildBridgeShimScript(platform: 'android' | 'ios'): string {
       requestAppUpdate: function () { post('requestAppUpdate'); },
       openAppSettings: function () { post('openAppSettings'); },
       requestPermissionSettings: function () { post('requestPermissionSettings'); },
+      requestCameraPermission: function () {
+        try {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ '${CAMERA_REQUEST_MARKER}': true }));
+        } catch (e) {}
+      },
       logWebDiagnostics: function (payload) { post('logWebDiagnostics', payload == null ? '' : String(payload)); },
       onLaunchWebCleanupFinished: function (payload) { post('onLaunchWebCleanupFinished', payload == null ? '' : String(payload)); },
       onRouteChange: function (path) { post('routeChange', path == null ? '' : String(path)); },
@@ -139,6 +164,13 @@ export function buildBridgeShimScript(platform: 'android' | 'ios'): string {
         loginSuccess: makeHandler('loginSuccess', function (b) { return b == null ? '' : String(b); }),
         openAppSettings: makeHandler('openAppSettings'),
         requestPermissionSettings: makeHandler('requestPermissionSettings'),
+        requestCameraPermission: {
+          postMessage: function () {
+            try {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ '${CAMERA_REQUEST_MARKER}': true }));
+            } catch (e) {}
+          }
+        },
         logWebDiagnostics: makeHandler('logWebDiagnostics', function (b) { return b == null ? '' : String(b); }),
         onLaunchWebCleanupFinished: makeHandler('onLaunchWebCleanupFinished', function (b) { return b == null ? '' : String(b); }),
         onAppReady: makeHandler('onAppReady'),
@@ -230,6 +262,29 @@ export const INJECTED_SCRIPT = `
         return origWatchPosition.apply(navigator.geolocation, arguments);
       };
     }
+  } catch (e) {}
+
+  // --- lazy camera-permission priming ---------------------------------------
+  // On Android, react-native-webview drops the camera intent if CAMERA
+  // permission was not granted at runtime. Intercept file input clicks or
+  // explicit requests to prime camera permission lazily before file chooser opens.
+  try {
+    var notifyCameraRequested = function () {
+      try {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ '${CAMERA_REQUEST_MARKER}': true }));
+      } catch (e) {}
+    };
+    window.__intipRequestCameraPermission = notifyCameraRequested;
+    document.addEventListener('click', function (e) {
+      var target = e.target;
+      if (!target) return;
+      if (
+        (target.tagName === 'INPUT' && target.type === 'file') ||
+        (target.closest && target.closest('input[type="file"], [data-camera-trigger], [data-photo-trigger]'))
+      ) {
+        notifyCameraRequested();
+      }
+    }, true);
   } catch (e) {}
 
   // --- native -> web deep link ----------------------------------------------

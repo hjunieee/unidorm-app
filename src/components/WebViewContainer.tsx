@@ -66,7 +66,7 @@ import { PROTOCOL_VERSION, type TokenInfoPayload } from "../../packages/intip-br
 import { clearCacheAndReload, clearWebViewCache } from "../native/cache";
 import { saveDownload } from "../native/downloads";
 import { handleAgentBridgeMessage } from "../agent/agentBridgeHandler";
-import { ensureLocationPermission } from "../native/permissions";
+import { ensureCameraPermission, ensureLocationPermission } from "../native/permissions";
 import { clearTokenInfo, readTokenInfo, saveTokenInfo } from "../native/secureTokenStore";
 import { shareContent } from "../native/share";
 import { onFcmTokenRefresh } from "../push/fcmTokenSync";
@@ -97,6 +97,7 @@ import {
   buildReceiveFcmTokenScript,
   buildSafeAreaInsetsScript,
   INJECTED_SCRIPT,
+  isCameraPermissionRequest,
   isGeoPermissionRequest,
   LAUNCH_CLEANUP_SCRIPT,
 } from "../webview/injectedScript";
@@ -173,10 +174,14 @@ const BACK_DELEGATION_TIMEOUT_MS = 350;
  * already in localStorage (not just on a fresh login), so tying priming to it
  * used to re-prime on every freshly pushed sub-page's first load — surfacing
  * as a permission dialog popping up out of nowhere on pages that never touch
- * location (e.g. the timetable edit page). Camera needs no priming at all:
- * both WebView engines request it from the OS on demand (see permissions.ts).
+ * location (e.g. the timetable edit page).
+ *
+ * Camera: Android's react-native-webview drops the camera intent if CAMERA
+ * permission is not yet granted at runtime. Lazily primed via
+ * `CAMERA_REQUEST_MARKER` or on entering media-upload pages (/chat, /complain).
  */
 let locationPermissionPrimed = false;
+let cameraPermissionPrimed = false;
 
 /** Bridge shim is platform-specific (see injectedScript.ts). */
 const BRIDGE_SHIM_SCRIPT = buildBridgeShimScript(
@@ -247,6 +252,23 @@ export default function WebViewContainer({ url, mode }: Props) {
     void ensureLocationPermission();
   }, []);
 
+  const primeCameraPermission = useCallback(() => {
+    if (cameraPermissionPrimed || Platform.OS !== "android") return;
+    cameraPermissionPrimed = true;
+    void ensureCameraPermission();
+  }, []);
+
+  // Media-upload route priming: on Android, entering chat or complain pages
+  // primes camera permission lazily so file chooser intents never drop.
+  useEffect(() => {
+    if (Platform.OS === "android") {
+      const lower = url.toLowerCase();
+      if (lower.includes("/chat") || lower.includes("/complain")) {
+        primeCameraPermission();
+      }
+    }
+  }, [url, primeCameraPermission]);
+
   // Dev builds also peel relayed web console messages off before the bridge
   // channel parses the stream (they're not part of the intip-bridge
   // contract); the geo-priming ping is intercepted the same way in every
@@ -263,6 +285,10 @@ export default function WebViewContainer({ url, mode }: Props) {
       }
       if (isGeoPermissionRequest(raw)) {
         primeLocationPermission();
+        return;
+      }
+      if (isCameraPermissionRequest(raw)) {
+        primeCameraPermission();
         return;
       }
       const probe = parseTokenProbe(raw);
@@ -290,7 +316,7 @@ export default function WebViewContainer({ url, mode }: Props) {
         }
       });
     },
-    [bridge, url, primeLocationPermission, adoptWebToken],
+    [bridge, url, primeLocationPermission, primeCameraPermission, adoptWebToken],
   );
   const router = useRouter();
   // Read-only access to the live navigation state (push-tap dedupe below).
