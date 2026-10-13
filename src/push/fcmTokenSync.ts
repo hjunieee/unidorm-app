@@ -34,6 +34,21 @@ export function getLatestRotatedToken(): string | null {
 }
 
 /**
+ * Broadcasts an FCM token to all active listeners.
+ * Used for initial token acquisition after permission grant or token refresh.
+ */
+export function broadcastFcmToken(token: string): void {
+  latestRotatedToken = token;
+  listeners.forEach((listener) => {
+    try {
+      listener(token);
+    } catch (err) {
+      console.warn('[fcmTokenSync] listener error', err);
+    }
+  });
+}
+
+/**
  * Registers the `onTokenRefresh` listener once.
  * Called from `registerBackgroundHandlers()` so it is active before React renders.
  */
@@ -41,13 +56,6 @@ export function registerFcmTokenRotationListener(): void {
   if (rotationRegistered) return;
   rotationRegistered = true;
   messaging().onTokenRefresh((token) => {
-    latestRotatedToken = token;
-    listeners.forEach((listener) => {
-      try {
-        listener(token);
-      } catch (err) {
-        console.warn('[fcmTokenSync] listener error', err);
-      }
-    });
+    broadcastFcmToken(token);
   });
 }

@@ -63,4 +63,31 @@ describe('fcmTokenSync (Web Unification)', () => {
     expect(faultyListener).toHaveBeenCalledWith('token-abc');
     expect(goodListener).toHaveBeenCalledWith('token-abc');
   });
+
+  it('broadcastFcmToken sends tokens directly to all active listeners and sets latest token', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const {
+      broadcastFcmToken,
+      onFcmTokenRefresh,
+      getLatestRotatedToken,
+    } = require('../fcmTokenSync') as typeof import('../fcmTokenSync');
+
+    const listenerA = jest.fn();
+    const listenerB = jest.fn();
+
+    const unsubA = onFcmTokenRefresh(listenerA);
+    onFcmTokenRefresh(listenerB);
+
+    broadcastFcmToken('manual-broadcast-token-789');
+
+    expect(listenerA).toHaveBeenCalledWith('manual-broadcast-token-789');
+    expect(listenerB).toHaveBeenCalledWith('manual-broadcast-token-789');
+    expect(getLatestRotatedToken()).toBe('manual-broadcast-token-789');
+
+    unsubA();
+    broadcastFcmToken('manual-broadcast-token-000');
+    expect(listenerA).toHaveBeenCalledTimes(1);
+    expect(listenerB).toHaveBeenCalledWith('manual-broadcast-token-000');
+    expect(getLatestRotatedToken()).toBe('manual-broadcast-token-000');
+  });
 });

@@ -28,7 +28,7 @@ import {
   isDuplicate,
   subscribe,
 } from './pendingIntent';
-import { registerFcmTokenRotationListener } from './fcmTokenSync';
+import { broadcastFcmToken, registerFcmTokenRotationListener } from './fcmTokenSync';
 
 export type { NavIntent };
 
@@ -93,22 +93,69 @@ export async function requestNotificationPermission(): Promise<boolean> {
     return ensureAndroidPostNotifications();
   }
 
-  // iOS: request alert + badge + sound, then register for remote notifications.
+  // iOS: 선제적으로 원격 알림(APNs) 등록을 먼저 트리거하여 백그라운드에서 APNs 토큰 발급 절차를 시작함
+  try {
+    if (!messaging().isDeviceRegisteredForRemoteMessages) {
+      await messaging().registerDeviceForRemoteMessages();
+    }
+  } catch (err) {
+    console.warn('[fcm] registerDeviceForRemoteMessages failed', err);
+  }
+
+  // iOS: request alert + badge + sound
   const status = await messaging().requestPermission();
-  await messaging().registerDeviceForRemoteMessages();
-  return (
+  const granted =
     status === messaging.AuthorizationStatus.AUTHORIZED ||
-    status === messaging.AuthorizationStatus.PROVISIONAL
-  );
+    status === messaging.AuthorizationStatus.PROVISIONAL;
+
+  // 권한 승인이 확인되면 지연 없이 즉시 토큰을 발급받아 등록된 웹뷰들에 브로드캐스트
+  if (granted) {
+    void (async () => {
+      try {
+        const token = await getFcmTokenWithRetry();
+        if (token) {
+          broadcastFcmToken(token);
+        }
+      } catch (err) {
+        console.warn('[fcm] token sync after permission grant failed', err);
+      }
+    })();
+  }
+
+  return granted;
 }
 
 /**
  * Fetch the FCM token, retrying on failure (token may not be ready yet —
  * e.g. APNs token still pending on iOS). Swift ref: `fetchFcmToken(retry:)`.
  */
-export async function getFcmTokenWithRetry(retries = 3, delayMs = 1000): Promise<string | null> {
+export async function getFcmTokenWithRetry(retries = 5, delayMs = 1000): Promise<string | null> {
+  // iOS에서 원격 알림이 등록되지 않은 경우 등록 시도
+  if (Platform.OS === 'ios') {
+    try {
+      if (!messaging().isDeviceRegisteredForRemoteMessages) {
+        await messaging().registerDeviceForRemoteMessages();
+      }
+    } catch (err) {
+      console.warn('[fcm] registerDeviceForRemoteMessages in getToken failed', err);
+    }
+  }
+
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
+      // iOS의 경우 APNs 토큰이 준비되었는지 먼저 확인 (준비되지 않은 상태에서 getToken 호출 시 에러 방지)
+      if (Platform.OS === 'ios') {
+        try {
+          const apnsToken = await messaging().getAPNSToken();
+          if (!apnsToken && attempt < retries - 1) {
+            await sleep(delayMs);
+            continue;
+          }
+        } catch {
+          // getAPNSToken may throw on simulator or older OS; proceed to getToken
+        }
+      }
+
       const token = await messaging().getToken();
       if (token) return token;
     } catch (err) {

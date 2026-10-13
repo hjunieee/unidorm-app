@@ -16,10 +16,15 @@ console.warn = (...args) => {
 // throws "Native module RNFBAppModule not found" at module load.
 jest.mock('@react-native-firebase/messaging', () => {
   const instance = {
+    isDeviceRegisteredForRemoteMessages: false,
+    registerDeviceForRemoteMessages: jest.fn(() => Promise.resolve()),
+    requestPermission: jest.fn(() => Promise.resolve(1)),
+    getAPNSToken: jest.fn(() => Promise.resolve('test-apns-token')),
     getToken: jest.fn(() => Promise.resolve('test-fcm-token')),
     onTokenRefresh: jest.fn(() => jest.fn()),
   };
   const messaging = jest.fn(() => instance);
+  messaging.AuthorizationStatus = { AUTHORIZED: 1, PROVISIONAL: 2, DENIED: 0 };
   return { __esModule: true, default: messaging };
 });
 

@@ -65,7 +65,7 @@ workflows:
             <key>IS_SIGNIN_ENABLED</key>
             <true></true>
             <key>GOOGLE_APP_ID</key>
-            <string>1:495990333760:ios:1dd800c44d8b2b306cdaa5</string>
+            <string>1:495990333760:ios:14438fe30b6813a06cdaa5</string>
           </dict>
           </plist>
           EOF
@@ -189,7 +189,7 @@ workflows:
             <key>IS_SIGNIN_ENABLED</key>
             <true></true>
             <key>GOOGLE_APP_ID</key>
-            <string>1:495990333760:ios:1dd800c44d8b2b306cdaa5</string>
+            <string>1:495990333760:ios:14438fe30b6813a06cdaa5</string>
           </dict>
           </plist>
           EOF
