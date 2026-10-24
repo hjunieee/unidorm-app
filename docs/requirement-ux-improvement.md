@@ -1,10 +1,10 @@
-본 문서는 **INTIP(인팁)** 프로젝트의 웹 프론트엔드와 모바일 네이티브 앱(Android 및 iOS) 간의 통신 규격, 멀티 웹뷰 라우팅 아키텍처, 브릿지 인터페이스 명세를 상세히 다룹니다. Android와 iOS 두 네이티브 플랫폼의 실제 구현 내용을 바탕으로 하이브리드 연동 표준 규격을 기술합니다.
+본 문서는 **유니돔(UniDorm)** 프로젝트의 웹 프론트엔드와 모바일 네이티브 앱(Android 및 iOS) 간의 통신 규격, 멀티 웹뷰 라우팅 아키텍처, 브릿지 인터페이스 명세를 상세히 다룹니다. Android와 iOS 두 네이티브 플랫폼의 실제 구현 내용을 바탕으로 하이브리드 연동 표준 규격을 기술합니다.
 
 ---
 
 ## 1. 개요 및 하이브리드 아키텍처
 
-INTIP 서비스는 단일 웹뷰에서 모든 페이지가 이동하는 기존 하이브리드 방식의 단점(화면 전환 애니메이션의 부재, 네이티브 제스처 뒤로가기 미지원, 스크롤 스터터링 등)을 보완하기 위해 **SPA(Single Page Application)와 네이티브 멀티 웹뷰(Multi-WebView) 스택이 혼합된 구조**를 채택하고 있습니다.
+유니돔 서비스는 단일 웹뷰에서 모든 페이지가 이동하는 기존 하이브리드 방식의 단점(화면 전환 애니메이션의 부재, 네이티브 제스처 뒤로가기 미지원, 스크롤 스터터링 등)을 보완하기 위해 **SPA(Single Page Application)와 네이티브 멀티 웹뷰(Multi-WebView) 스택이 혼합된 구조**를 채택하고 있습니다.
 
 - **메인 탭 화면**: 단일 메인 웹뷰 액티비티/뷰컨트롤러 내에서 React Router를 사용한 SPA 방식으로 화면을 전환합니다.
 - **서브 페이지 (상세 화면 등)**: 메인 탭이 아닌 상세 화면으로 진입할 시, 네이티브가 새로운 웹뷰 컨테이너(Android: `WebViewActivity`, iOS: `WebViewController`)를 생성하여 화면 위에 스택처럼 푸시(Push)합니다.
@@ -21,13 +21,13 @@ INTIP 서비스는 단일 웹뷰에서 모든 페이지가 이동하는 기존 �
 네이티브 앱은 웹뷰를 초기화할 때, 시스템의 기본 User-Agent 문자열 뒤에 아래의 식별용 접미사(Suffix)를 공통으로 추가해야 합니다. (띄어쓰기 한 칸 포함)
 
 ```
- INTIPApp/1.0.0
+ UNIDormApp/1.0.0
 ```
 
 - **Android 적용 코드 예시 (`WebViewActivity.kt`)**:
     
     ```kotlin
-    webView.settings.userAgentString += " INTIPApp/1.0.0"
+    webView.settings.userAgentString += " UNIDormApp/1.0.0"
     ```
     
 - **iOS 적용 코드 예시 (`WebViewController.swift`)**:
@@ -35,7 +35,7 @@ INTIP 서비스는 단일 웹뷰에서 모든 페이지가 이동하는 기존 �
     ```swift
     webView.evaluateJavaScript("navigator.userAgent") { [weak self] (result, error) in
         if let defaultUA = result as? String {
-            self?.webView.customUserAgent = defaultUA + " INTIPApp/1.0.0"
+            self?.webView.customUserAgent = defaultUA + " UNIDormApp/1.0.0"
         }
     }
     ```
@@ -47,7 +47,7 @@ INTIP 서비스는 단일 웹뷰에서 모든 페이지가 이동하는 기존 �
 
 | 환경 분류 (`AppEnvironmentStatus`) | 판정 기준 |
 | --- | --- |
-| **`NEW_APP`** (신버전 공식 앱) | **[Android]** UA에 `"INTIPApp"`이 포함되거나 `window.AndroidBridge`가 존재하고, 동시에 `window.AndroidBridge.navigateTo` 함수가 정의되어 있음.<br>**[iOS]** `window.webkit.messageHandlers.requestAppUpdate`가 존재하고, 동시에 UA에 `"INTIPApp"`이 포함되어 있음. |
+| **`NEW_APP`** (신버전 공식 앱) | **[Android]** UA에 `"UNIDormApp"`이 포함되거나 `window.AndroidBridge`가 존재하고, 동시에 `window.AndroidBridge.navigateTo` 함수가 정의되어 있음.<br>**[iOS]** `window.webkit.messageHandlers.requestAppUpdate`가 존재하고, 동시에 UA에 `"UNIDormApp"`이 포함되어 있음. |
 | **`OLD_APP`** (구버전 공식 앱) | 공식 앱 환경이나 신규 멀티 웹뷰 브릿지(`navigateTo`)를 지원하지 않는 경우. |
 | **`BROWSER`** (일반 브라우저) | 위의 공식 앱 감지 조건이 모두 맞지 않는 경우 (크롬, 사파리 및 카카오톡/인스타 인앱 브라우저 등). |
 
@@ -255,7 +255,7 @@ iOS WebKit 환경에서는 `window.webkit.messageHandlers` 객체를 활용한 �
 3. **동영상 인라인 재생 허용**:
     - iOS: `allowsInlineMediaPlayback = true` (동영상 자동 전체 화면 방지)
 4. **외부 앱 연동 및 아웃링크 정책**:
-    - 접속 도메인이 서비스 허용 도메인(`intip.inuappcenter.kr` 등)이 아닌 타 도메인인 경우, 내부 웹뷰로 이동하지 않고 모바일 기기의 기본 브라우저(Safari / Chrome 등) 혹은 외부 앱(Intent)으로 띄워 처리합니다.
+    - 접속 도메인이 서비스 허용 도메인(`unidorm.inuappcenter.kr` 등)이 아닌 타 도메인인 경우, 내부 웹뷰로 이동하지 않고 모바일 기기의 기본 브라우저(Safari / Chrome 등) 혹은 외부 앱(Intent)으로 띄워 처리합니다.
     - `intent:`, `market:`, `ispmobile:` 스키마 등은 각 OS에 알맞게 외부 앱 및 스토어 설치 페이지로 직접 라우팅해야 합니다.
 5. **내비게이션 뒤로가기 스와이프 차단 제어**:
     - 상세 페이지에서는 네이티브 뒤로가기 스와이프를 허용하여 액티비티/뷰컨트롤러가 Pop 되게 처리하지만, 메인 탭에 도달하면 제스처를 꺼두어 웹의 하단 탭 내비게이션 흐름과 충돌이 없도록 제어합니다.

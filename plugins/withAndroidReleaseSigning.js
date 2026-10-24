@@ -13,7 +13,7 @@
  * adopts it), with no extra step to remember or wire up separately.
  *
  * No secret ever lives in this file or in git. The keystore itself
- * (`intip.jks`, repo root, gitignored via `*.jks`) and its credentials are
+ * (`unidorm.jks`, repo root, gitignored via `*.jks`) and its credentials are
  * read by Gradle from environment variables at *build* time, not by this
  * plugin at *prebuild* time — this file only emits the `System.getenv(...)`
  * Groovy calls as literal text.
@@ -24,7 +24,7 @@
  *   - ANDROID_RELEASE_KEY_ALIAS
  *   - ANDROID_RELEASE_KEY_PASSWORD
  * Optional:
- *   - ANDROID_RELEASE_STORE_FILE (defaults to `../../intip.jks`, i.e. repo
+ *   - ANDROID_RELEASE_STORE_FILE (defaults to `../../unidorm.jks`, i.e. repo
  *     root, resolved relative to android/app/build.gradle)
  */
 const { withAppBuildGradle } = require('expo/config-plugins');

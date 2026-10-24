@@ -27,7 +27,7 @@
  *   --key <path>               AuthKey_<id>.p8 경로   (APP_STORE_CONNECT_KEY_PATH)
  *   --key-id <id>              Key ID, 기본 45D3A26734 (APP_STORE_CONNECT_KEY_ID)
  *   --issuer <id>              Issuer ID               (APP_STORE_CONNECT_ISSUER_ID)
- *   --bundle-id <id>           메인 앱, 기본 kr.inuappcenter.intip
+ *   --bundle-id <id>           메인 앱, 기본 com.inuappcenter.unidorm
  *   --extension-bundle-id <id> 기본 <bundle-id>.share-extension
  *
  * 의존성 없음 — 이 레포의 다른 ios-*.js 스크립트와 같은 패턴.
@@ -38,7 +38,7 @@ const crypto = require("node:crypto");
 
 const API_ROOT = "https://api.appstoreconnect.apple.com/v1";
 const DEFAULT_KEY_ID = "45D3A26734"; // .github/workflows/ci.yml과 동일 — 비밀 아님
-const DEFAULT_BUNDLE_ID = "kr.inuappcenter.intip";
+const DEFAULT_BUNDLE_ID = "com.inuappcenter.unidorm";
 
 function usage(exitCode) {
   console.log(

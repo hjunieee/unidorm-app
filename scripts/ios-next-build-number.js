@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * kr.inuappcenter.intip 앱에 App Store Connect로 이미 업로드된 빌드 중 가장 큰
+ * com.inuappcenter.unidorm 앱에 App Store Connect로 이미 업로드된 빌드 중 가장 큰
  * CFBundleVersion(=buildNumber)을 조회해서, 그보다 1 큰 값을 표준출력(stdout)에
  * 정수로 찍는다.
  *
@@ -22,7 +22,7 @@
  *   --key <path>            AuthKey_<id>.p8 경로   (APP_STORE_CONNECT_KEY_PATH)
  *   --key-id <id>           Key ID, 기본 45D3A26734 (APP_STORE_CONNECT_KEY_ID)
  *   --issuer <id>           Issuer ID               (APP_STORE_CONNECT_ISSUER_ID)
- *   --bundle-id <id>        기본 kr.inuappcenter.intip
+ *   --bundle-id <id>        기본 com.inuappcenter.unidorm
  *
  * 의존성 없음 — 다른 ios-*.js 스크립트와 같은 패턴.
  */
@@ -32,7 +32,7 @@ const crypto = require("node:crypto");
 
 const API_ROOT = "https://api.appstoreconnect.apple.com/v1";
 const DEFAULT_KEY_ID = "45D3A26734"; // .github/workflows/ci.yml과 동일 — 비밀 아님
-const DEFAULT_BUNDLE_ID = "kr.inuappcenter.intip"; // app.json ios.bundleIdentifier
+const DEFAULT_BUNDLE_ID = "com.inuappcenter.unidorm"; // app.json ios.bundleIdentifier
 
 function usage(exitCode) {
   console.error(
