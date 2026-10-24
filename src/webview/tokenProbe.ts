@@ -16,10 +16,10 @@
  * ever changes, the probe quietly reports "no token" and the shell falls back
  * to waiting for the next `syncTokenInfo`.
  */
-import type { TokenInfoPayload } from '../../packages/intip-bridge/src/messages';
+import type { TokenInfoPayload } from '../../packages/unidorm-bridge/src/messages';
 
 /** Out-of-band marker, peeled off in `WebViewContainer` before the bridge channel parses the message. */
-export const TOKEN_PROBE_MARKER = '__intipTokenProbe';
+export const TOKEN_PROBE_MARKER = '__unidormTokenProbe';
 
 /**
  * Posts the web's stored token (or null) back to native.

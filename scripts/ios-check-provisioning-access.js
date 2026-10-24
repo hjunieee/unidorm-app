@@ -9,7 +9,7 @@
  * API 키로 이 리소스를 다루려면 Admin 롤이어야 한다:
  * https://developer.apple.com/help/account/access/roles/
  *
- * 검증 방법: 실제 App ID(kr.inuappcenter.intip)는 절대 건드리지 않는다.
+ * 검증 방법: 실제 App ID(com.inuappcenter.unidorm)는 절대 건드리지 않는다.
  * 대신
  *   1. 읽기 테스트 — 실제 bundle ID 조회 + 현재 capability 목록 확인
  *   2. 쓰기 테스트 — 임시 더미 Bundle ID를 하나 만들고, 그 위에 Associated
@@ -20,7 +20,7 @@
  * 사용법:
  *   node scripts/ios-check-provisioning-access.js
  *   node scripts/ios-check-provisioning-access.js --read-only   # 쓰기 테스트(더미 생성) 생략
- *   node scripts/ios-check-provisioning-access.js --bundle-id kr.inuappcenter.intip
+ *   node scripts/ios-check-provisioning-access.js --bundle-id com.inuappcenter.unidorm
  *
  * 옵션 (또는 환경변수):
  *   --key <path>    AuthKey_<id>.p8 경로       (APP_STORE_CONNECT_KEY_PATH)
@@ -35,7 +35,7 @@ const crypto = require("node:crypto");
 
 const API_ROOT = "https://api.appstoreconnect.apple.com/v1";
 const DEFAULT_KEY_ID = "45D3A26734"; // .github/workflows/ci.yml과 동일 — 비밀 아님
-const DEFAULT_BUNDLE_ID = "kr.inuappcenter.intip"; // app.json ios.bundleIdentifier
+const DEFAULT_BUNDLE_ID = "com.inuappcenter.unidorm"; // app.json ios.bundleIdentifier
 
 function usage(exitCode) {
   console.log(
@@ -190,7 +190,7 @@ async function main() {
         type: "bundleIds",
         attributes: {
           identifier: dummyIdentifier,
-          name: "intip-permcheck-DELETE-ME",
+          name: "unidorm-permcheck-DELETE-ME",
           platform: "IOS",
         },
       },

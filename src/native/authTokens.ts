@@ -4,10 +4,11 @@
  * a live WebView — refreshing the access token itself when it's expired.
  *
  * The refresh endpoint rotates both accessToken and refreshToken on every
- * call (confirmed against the legacy Android client), so a web-side refresh
- * happening in the same narrow window as a native one can make one side's
- * refreshToken stale. That's treated as an acceptable edge case here — no
- * distributed lock, just last-write-wins via `syncTokenInfo`/`tokenInfoUpdated`.
+ * call, and a retired refresh token is rejected outright. Several WebViews
+ * booting at once (a notification tap opens the root and a chat sub-page
+ * together) used to each refresh with the same token and log the loser out,
+ * so a WebView on a shell that advertises `tokenRefresh` asks native to
+ * refresh instead (`refreshWithToken`), and native does it once for everyone.
  */
 import { API_BASE_URL } from '../config/env';
 import { clearTokenInfo, readTokenInfo, saveTokenInfo, type TokenInfo } from './secureTokenStore';
@@ -32,54 +33,123 @@ export function isExpired(dateTimeStr: string, now: Date): boolean {
   return expiry ? now.getTime() >= expiry.getTime() : true;
 }
 
-let listener: ((tokenInfo: TokenInfo) => void) | null = null;
+let listener: ((tokenInfo: TokenInfo & { role?: string }) => void) | null = null;
 
 /** Subscribe to native-initiated refreshes, to echo the result back to the
  * live WebView(s). No queue — a refresh with nobody subscribed (fully
  * backgrounded/killed) is fine to drop, the web side reconciles via its own
  * 401 flow next time it runs. */
-export function onNativeTokenRefresh(cb: (tokenInfo: TokenInfo) => void): () => void {
+export function onNativeTokenRefresh(
+  cb: (tokenInfo: TokenInfo & { role?: string }) => void,
+): () => void {
   listener = cb;
   return () => {
     if (listener === cb) listener = null;
   };
 }
 
-let refreshInFlight: Promise<TokenInfo | null> | null = null;
+/** Result of one `/users/refreshToken` round trip, shared by every caller. */
+export type RefreshOutcome =
+  | { status: 'ok'; tokenInfo: TokenInfo; role: string }
+  // The server refused the refresh token — the session is over.
+  | { status: 'rejected' }
+  // Network failure / 5xx / malformed body — the session may still be fine.
+  | { status: 'error' };
 
-async function doRefresh(stored: TokenInfo): Promise<TokenInfo | null> {
-  if (!stored.refreshToken || isExpired(stored.refreshTokenExpiredTime, new Date())) {
-    await clearTokenInfo();
+/**
+ * `exp` claim of a JWT as a naive device-local datetime string, the same
+ * shape the rest of the token plumbing compares with `isExpired`. `null` for
+ * anything that isn't a decodable JWT.
+ */
+export function jwtExpiryNaive(token: string): string | null {
+  const segment = token.split('.')[1];
+  if (!segment) return null;
+  try {
+    const base64 = segment.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    const exp = (JSON.parse(atob(padded)) as { exp?: unknown }).exp;
+    if (typeof exp !== 'number') return null;
+    const d = new Date(exp * 1000);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return (
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+      `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    );
+  } catch {
     return null;
   }
+}
+
+/**
+ * The refresh endpoint rotates the refresh token, so every WebView (and the
+ * native FCM path) has to go through this one slot: a second request with the
+ * same token while one is in flight joins it, and one arriving just after it
+ * finished gets the pair that rotation produced instead of hitting the server
+ * with a token it has already retired.
+ */
+let refreshInFlight: Promise<RefreshOutcome> | null = null;
+let lastRotation: { from: string; outcome: Extract<RefreshOutcome, { status: 'ok' }> } | null =
+  null;
+
+async function doRefresh(refreshToken: string): Promise<RefreshOutcome> {
   try {
     const res = await fetch(`${API_BASE_URL}/users/refreshToken`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: `Bearer ${stored.refreshToken}` }),
+      body: JSON.stringify({ refreshToken: `Bearer ${refreshToken}` }),
     });
     if (!res.ok) {
-      if (res.status === 401 || res.status === 403) await clearTokenInfo();
-      return null;
+      if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+        // Only forget the stored pair when it is the one that was refused — a
+        // caller holding an older, already-rotated token says nothing about it.
+        const stored = await readTokenInfo();
+        if (stored?.refreshToken === refreshToken) await clearTokenInfo();
+        return { status: 'rejected' };
+      }
+      return { status: 'error' };
     }
     const body = await res.json();
     const accessToken = body.accessToken ?? body.data?.accessToken;
-    const refreshToken = body.refreshToken ?? body.data?.refreshToken ?? stored.refreshToken;
+    const nextRefreshToken = body.refreshToken ?? body.data?.refreshToken ?? refreshToken;
+    const role = body.role ?? body.data?.role ?? '';
     if (!accessToken) {
-      return null;
+      return { status: 'error' };
     }
+    // The response carries no expiry times; read them off the JWTs, keeping
+    // whatever was stored when a token can't be decoded.
+    const stored = await readTokenInfo();
     const newTokenInfo: TokenInfo = {
-      ...stored,
       accessToken,
-      refreshToken,
+      accessTokenExpiredTime:
+        jwtExpiryNaive(accessToken) ?? stored?.accessTokenExpiredTime ?? '',
+      refreshToken: nextRefreshToken,
+      refreshTokenExpiredTime:
+        jwtExpiryNaive(nextRefreshToken) ?? stored?.refreshTokenExpiredTime ?? '',
     };
     await saveTokenInfo(newTokenInfo);
-    listener?.(newTokenInfo);
-    return newTokenInfo;
+    const outcome = { status: 'ok', tokenInfo: newTokenInfo, role } as const;
+    lastRotation = { from: refreshToken, outcome };
+    listener?.({ ...newTokenInfo, ...(role ? { role } : {}) });
+    return outcome;
   } catch (err) {
     console.warn('[authTokens] self-refresh failed', err);
-    return null;
+    return { status: 'error' };
   }
+}
+
+/**
+ * Exchange `refreshToken` for a new pair, at most once per token across the
+ * whole app. Used by WebViews (`requestTokenRefresh` bridge request) and by
+ * `getValidAccessToken`.
+ */
+export function refreshWithToken(refreshToken: string): Promise<RefreshOutcome> {
+  if (refreshInFlight) return refreshInFlight;
+  if (lastRotation?.from === refreshToken) return Promise.resolve(lastRotation.outcome);
+
+  refreshInFlight = doRefresh(refreshToken).finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
 }
 
 /**
@@ -92,11 +162,16 @@ export async function getValidAccessToken(): Promise<string | null> {
   if (!stored?.accessToken) return null;
   if (!isExpired(stored.accessTokenExpiredTime, new Date())) return stored.accessToken;
 
-  if (!refreshInFlight) {
-    refreshInFlight = doRefresh(stored).finally(() => {
-      refreshInFlight = null;
-    });
+  if (!stored.refreshToken || isExpired(stored.refreshTokenExpiredTime, new Date())) {
+    await clearTokenInfo();
+    return null;
   }
-  const refreshed = await refreshInFlight;
-  return refreshed?.accessToken ?? null;
+  const outcome = await refreshWithToken(stored.refreshToken);
+  return outcome.status === 'ok' ? outcome.tokenInfo.accessToken : null;
+}
+
+/** Test-only: reset the single-flight state between test cases. */
+export function __resetRefreshStateForTests(): void {
+  refreshInFlight = null;
+  lastRotation = null;
 }

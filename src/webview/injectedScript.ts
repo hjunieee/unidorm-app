@@ -12,7 +12,7 @@
  *  2. At document end (`injectedJavaScript`):
  *     - the route observer (`routeChange`), login detection (`loginSuccess`),
  *       a lazy geolocation-permission priming ping (`GEO_REQUEST_MARKER`), and
- *       the `window.__intipNavigate` deep-link helper.
+ *       the `window.__unidormNavigate` deep-link helper.
  *
  * All scripts above are guarded so re-injection is a no-op. Separately,
  * `buildSafeAreaInsetsScript` is re-injected (imperatively, via
@@ -22,19 +22,19 @@
 
 /**
  * Out-of-band marker for a lazy location-permission-priming ping. Deliberately
- * NOT an `@inu-appcenter/intip-bridge` event (see `webConsole.ts`'s
+ * NOT an `@unidorm/bridge` event (see `webConsole.ts`'s
  * `WEB_CONSOLE_MARKER` for the same reasoning): it's a native-only signal, so
  * adding it to the bridge contract would force a cross-repo schema bump for
  * something the web side never needs to know about. Intercepted (and
  * swallowed) in `WebViewContainer`'s `onMessage` before the channel sees it.
  */
-export const GEO_REQUEST_MARKER = '__intipGeoRequested';
+export const GEO_REQUEST_MARKER = '__unidormGeoRequested';
 
 /**
  * Out-of-band marker for a lazy camera-permission-priming ping.
  * Intercepted (and swallowed) in `WebViewContainer`'s `onMessage` before the channel sees it.
  */
-export const CAMERA_REQUEST_MARKER = '__intipCameraRequested';
+export const CAMERA_REQUEST_MARKER = '__unidormCameraRequested';
 
 /**
  * True when `raw` is the geolocation-priming ping posted by the patch
@@ -67,7 +67,7 @@ export function isCameraPermissionRequest(raw: string): boolean {
 /**
  * Shared `post()` helper source — reused by every injected script fragment.
  *
- * Emits the `@inu-appcenter/intip-bridge` envelope (`{ event, value, v }`) so
+ * Emits the `@unidorm/bridge` envelope (`{ event, value, v }`) so
  * that the shell-injected observers (routeChange/jsAlert) and the legacy bridge
  * shim (used by old web versions) all speak the same protocol the native
  * `createNativeChannel` parses. The first arg is kept named `type` for source
@@ -130,10 +130,10 @@ export function buildBridgeShimScript(platform: 'android' | 'ios'): string {
   // native accessor — adding properties to it (`mh.navigateTo = …`) is silently
   // dropped even though it reports `isExtensible: true`. So we cannot extend it.
   // Instead we rebuild `window.webkit` as a plain object whose `messageHandlers`
-  // adds the INTIP bridge handlers the web frontend calls.
+  // adds the UniDorm bridge handlers the web frontend calls.
   //
   // The rebuild MUST keep the original `messageHandlers` reachable, hence
-  // `Object.create(__nativeMH)`: own properties are the INTIP handlers, and any
+  // `Object.create(__nativeMH)`: own properties are the UniDorm handlers, and any
   // other lookup falls through to the real native accessor.
   //
   // react-native-webview registers TWO native handlers, not one:
@@ -184,8 +184,8 @@ export function buildBridgeShimScript(platform: 'android' | 'ios'): string {
 
   return `
 (function () {
-  if (window.__intipBridgeShimReady) return;
-  window.__intipBridgeShimReady = true;
+  if (window.__unidormBridgeShimReady) return;
+  window.__unidormBridgeShimReady = true;
   ${POST_HELPER}
   ${platform === 'android' ? androidShim : iosShim}
 
@@ -206,8 +206,8 @@ true;
  */
 export const INJECTED_SCRIPT = `
 (function () {
-  if (window.__intipBridgeReady) return;
-  window.__intipBridgeReady = true;
+  if (window.__unidormBridgeReady) return;
+  window.__unidormBridgeReady = true;
   ${POST_HELPER}
 
   function reportRoute() {
@@ -274,6 +274,9 @@ export const INJECTED_SCRIPT = `
         window.ReactNativeWebView.postMessage(JSON.stringify({ '${CAMERA_REQUEST_MARKER}': true }));
       } catch (e) {}
     };
+    window.__unidormRequestCameraPermission = notifyCameraRequested;
+    // Legacy name the web called before the rename. Drop it once the web that
+    // calls __unidormRequestCameraPermission is deployed.
     window.__intipRequestCameraPermission = notifyCameraRequested;
     document.addEventListener('click', function (e) {
       var target = e.target;
@@ -289,7 +292,7 @@ export const INJECTED_SCRIPT = `
 
   // --- native -> web deep link ----------------------------------------------
   // Best-effort SPA navigation used when a push notification is tapped.
-  window.__intipNavigate = function (path) {
+  window.__unidormNavigate = function (path) {
     try {
       if (!path || window.location.pathname === path) return;
       history.pushState({}, '', path);
@@ -323,12 +326,12 @@ export function buildEdgeLongPressGuardScript(
 ): string {
   return `
 (function () {
-  if (window.__intipEdgeGuardReady) return;
-  window.__intipEdgeGuardReady = true;
+  if (window.__unidormEdgeGuardReady) return;
+  window.__unidormEdgeGuardReady = true;
 
   // touchend 누락에 대비한 해제 타이머.
   var RELEASE_FALLBACK_MS = 2000;
-  var CLASS = '__intip-edge-guard';
+  var CLASS = '__unidorm-edge-guard';
 
   try {
     var style = document.createElement('style');
@@ -398,7 +401,7 @@ export function buildEdgeLongPressGuardScript(
     left: ${leftPx},
     right: ${rightPx}
   };
-  try { window.__intipEdgeGuard = handle; } catch (e) {}
+  try { window.__unidormEdgeGuard = handle; } catch (e) {}
 
   // 페이지 핸들러보다 먼저 시작 이벤트를 차단한다.
   function blockGestureStart(e) {
@@ -469,16 +472,16 @@ export function buildEdgeGuardDiagnosticsScript(): string {
   return `
 (function () {
   try { console.log('[edge-diag] boot'); } catch (e0) {}
-  if (window.__intipEdgeDiagReady) return;
-  window.__intipEdgeDiagReady = true;
+  if (window.__unidormEdgeDiagReady) return;
+  window.__unidormEdgeDiagReady = true;
  try {
   var TAG = '[edge-diag]';
   var startedAt = 0;
   var pending = null;
 
   // 현재 적용 중인 가드 폭을 기록한다.
-  function bandLeft() { try { return window.__intipEdgeGuard.left; } catch (e) { return -1; } }
-  function bandRight() { try { return window.__intipEdgeGuard.right; } catch (e) { return -1; } }
+  function bandLeft() { try { return window.__unidormEdgeGuard.left; } catch (e) { return -1; } }
+  function bandRight() { try { return window.__unidormEdgeGuard.right; } catch (e) { return -1; } }
 
   function describe(node) {
     if (!node || node.nodeType !== 1) return String(node);
@@ -517,7 +520,7 @@ export function buildEdgeGuardDiagnosticsScript(): string {
     var fromRight = Math.round(w - t.clientX);
     var inBand = fromLeft <= bandLeft() || fromRight <= bandRight();
     var blocking = true;
-    try { blocking = !!(window.__intipEdgeGuard && window.__intipEdgeGuard.blocking); } catch (e2) {}
+    try { blocking = !!(window.__unidormEdgeGuard && window.__unidormEdgeGuard.blocking); } catch (e2) {}
     startedAt = Date.now();
     pending = inBand;
     console.log(
@@ -639,8 +642,8 @@ export function buildNavigateScript(path: string): string {
   return `(function() {
     if (typeof window.navigateToPath === 'function') {
       window.navigateToPath(${safe});
-    } else if (typeof window.__intipNavigate === 'function') {
-      window.__intipNavigate(${safe});
+    } else if (typeof window.__unidormNavigate === 'function') {
+      window.__unidormNavigate(${safe});
     }
   })(); true;`;
 }
@@ -653,7 +656,7 @@ export function buildEdgeGuardBandScript(
   return `
 (function () {
   try {
-    var g = window.__intipEdgeGuard;
+    var g = window.__unidormEdgeGuard;
     if (!g) return;
     g.left = ${leftPx};
     g.right = ${rightPx};

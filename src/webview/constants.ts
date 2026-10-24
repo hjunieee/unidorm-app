@@ -49,7 +49,7 @@ export const PUSH_EXTERNAL_HOSTS = ["inu.ac.kr"] as const;
  *
  * Must stay in sync with `app.json` (`ios.associatedDomains`,
  * `android.intentFilters`) and with the domain-association files the web repo
- * serves (`inu-portal-web`, `public/app-links/`). The native side decides
+ * serves (`UNIDorm-web`, `public/app-links/`). The native side decides
  * *whether* the app opens at all; this list is what the JS side then trusts.
  */
 export const DEEP_LINK_HOSTS = [
@@ -102,7 +102,7 @@ export const APP_UA_SUFFIX = `UNIDormApp/${Constants.expoConfig?.version ?? "3.0
  * Update this whenever a new capability lands (e.g. a future `share:files`
  * once phase-2 image/file sharing ships).
  */
-export const NATIVE_FEATURES = ["share"] as const;
+export const NATIVE_FEATURES = ["share", "tokenRefresh"] as const;
 
 /**
  * Main-tab paths (spec §3.A). These stay inside the single root WebView via SPA

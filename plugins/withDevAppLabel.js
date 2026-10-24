@@ -1,7 +1,7 @@
 /**
  * 개발 변형(APP_VARIANT=development)에서만 로드되는 플러그인(app.config.js
  * 참고). Android 홈 화면 앱 이름(res/values/strings.xml의 app_name)만
- * "INTIP Dev"로 바꾼다.
+ * "유니돔 Dev"로 바꾼다.
  *
  * `expo.name`을 직접 바꾸지 않는 이유: expo prebuild가 그 값으로 android/
  * 프로젝트 자체를 생성하고, plugins/withAndroidReleaseSigning.js는 생성된

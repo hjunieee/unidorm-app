@@ -35,7 +35,7 @@ import {
 import { readSnapshot, writeSnapshot } from './sessionStore';
 import { onNativeTokenRefresh } from '../native/authTokens';
 import type { TokenInfo } from '../native/secureTokenStore';
-import type { BroadcastSyncPayload } from '../../packages/intip-bridge/src/messages';
+import type { BroadcastSyncPayload } from '../../packages/unidorm-bridge/src/messages';
 
 /** A live entry in the native stack, as tracked by the orchestrator. */
 export type WebViewEntry = {

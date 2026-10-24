@@ -5,7 +5,7 @@
  * `onTokenRefresh` — without a live WebView to relay through.
  */
 import * as SecureStore from 'expo-secure-store';
-import type { TokenInfoPayload } from '../../packages/intip-bridge/src/messages';
+import type { TokenInfoPayload } from '../../packages/unidorm-bridge/src/messages';
 
 export type TokenInfo = TokenInfoPayload;
 
