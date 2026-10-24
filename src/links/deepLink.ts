@@ -39,7 +39,7 @@ function isDeepLinkHost(host: string): boolean {
  * and a bare path doesn't parse.
  */
 function widgetPortalPath(url: string): string | null {
-  const match = /^(?:unidormapp:\/\/|intipmobileapp:\/\/|\/)?widget(?=[/?#]|$)(.*)$/.exec(url);
+  const match = /^(?:unidormapp:\/\/|\/)?widget(?=[/?#]|$)(.*)$/.exec(url);
   if (!match) return null;
   const rest = match[1];
   return rest.startsWith('/') ? rest : `/${rest}`;
@@ -81,9 +81,9 @@ export function resolveDeepLink(url: string): NavIntent | null {
   }
 
   // Custom app schemes (`unidormapp://...`, `unidorm://...`).
-  if (/^(unidormapp|unidorm|intipmobileapp|intip):\/\//i.test(url)) {
+  if (/^(unidormapp|unidorm):\/\//i.test(url)) {
     try {
-      const stripped = url.replace(/^(unidormapp|unidorm|intipmobileapp|intip):\/\//i, '');
+      const stripped = url.replace(/^(unidormapp|unidorm):\/\//i, '');
       const pathWithSlash = stripped.startsWith('/') ? stripped : `/${stripped}`;
       return intentForPortalPath(pathWithSlash);
     } catch {

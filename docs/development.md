@@ -21,8 +21,9 @@
 
 ### 저장소 클론 (서브모듈 포함)
 
-브릿지 계약은 npm 패키지가 아니라 **git 서브모듈**(`packages/unidorm-bridge`)로
-들어옵니다. 초기화하지 않으면 타입체크와 빌드가 모두 깨집니다.
+홈 화면 위젯 렌더러(`packages/expo-widgets-glance`)가 **git 서브모듈**로
+들어옵니다. 브릿지 계약(`packages/unidorm-bridge`)은 이 저장소에 직접 들어 있어
+따로 받을 필요가 없습니다.
 
 ```bash
 git clone --recurse-submodules https://github.com/inu-appcenter/unidorm-app.git
@@ -145,27 +146,19 @@ import하는 소스만 import 추적을 통해 타입체크됩니다.
 
 ---
 
-## 5. 브릿지 서브모듈 다루기
+## 5. 브릿지 계약 다루기
 
-`packages/unidorm-bridge`는 npm 패키지가 아니라 **git 서브모듈이며 소스에서 직접
-컴파일**됩니다(`WebViewContainer.tsx`의 상대 경로 import). `UNIDorm-web`도
-같은 방식으로 씁니다.
+`packages/unidorm-bridge`는 npm 패키지도 서브모듈도 아니고, 이 저장소에 들어 있는
+원본 소스를 **직접 컴파일**합니다(`WebViewContainer.tsx`의 상대 경로 import).
+`UNIDorm-web`은 같은 경로에 복사본을 둡니다.
 
 - `zod`가 이 저장소의 **직접 의존성**인 이유가 이것입니다 — 브릿지의
   `messages.ts`가 zod를 import하고, 그 소스가 앱 안에서 컴파일됩니다.
-- **계약을 바꿀 때**: 브릿지 저장소에서 수정 → 커밋 → 푸시한 뒤, 여기에서 핀을
-  올립니다.
-
-  ```bash
-  git submodule update --remote packages/unidorm-bridge
-  git add packages/unidorm-bridge
-  ```
-
-  `UNIDorm-web`에서도 동일하게 핀을 올립니다. npm publish도, 버전 bump도,
-  `npm update`도 없습니다 — 핀은 semver가 아니라 git SHA입니다.
+- **계약을 바꿀 때**: 여기 `packages/unidorm-bridge/src`를 고친 뒤
+  `messages.ts`, `channel.ts`, `adapters/web.ts`를 `UNIDorm-web`의
+  `packages/unidorm-bridge/src`로 복사하고, 그쪽 README의 기준 커밋을 갱신합니다.
 - 브릿지 소스는 **두 소비자의 strict tsconfig 양쪽에서** 컴파일되어야 합니다
   (예: 웹의 `noUnusedLocals`).
-- CI도 서브모듈을 초기화해야 합니다 (`SUBMODULE_TOKEN`).
 
 ---
 
@@ -290,7 +283,7 @@ GitHub-hosted 러너는 분 단위로 과금되고 macOS는 단가가 10배라, 
 | 시크릿 | 용도 |
 | --- | --- |
 | `EXPO_TOKEN` | EAS Update 발행 |
-| `SUBMODULE_TOKEN` | `unidorm-bridge` 서브모듈 체크아웃 |
+| `SUBMODULE_TOKEN` | 서브모듈(`expo-widgets-glance`) 체크아웃 |
 | `GOOGLE_SERVICES_JSON_BASE` / `GOOGLE_SERVICE_INFO_PLIST_BASE` | Firebase 설정 (base64) |
 | `ANDROID_RELEASE_KEYSTORE_BASE`, `ANDROID_RELEASE_KEY_ALIAS`, `ANDROID_RELEASE_KEY_PASSWORD`, `ANDROID_RELEASE_STORE_PASSWORD` | Android 릴리스 서명 |
 | `IOS_DISTRIBUTION_CERTIFICATE_P`, `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD`, `IOS_PROVISIONING_PROFILE_BASE`, `IOS_CI_KEYCHAIN_PASSWORD` | iOS 수동 서명 |

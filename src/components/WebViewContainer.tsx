@@ -37,8 +37,8 @@ import { useKeyboardState } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import WebView, { type WebViewNavigation } from "react-native-webview";
 
-// Shared bridge is vendored as a git submodule under packages/unidorm-bridge and
-// compiled from source (no npm package / registry). See AGENTS.md.
+// Shared bridge source lives in packages/unidorm-bridge and is compiled from
+// source (no npm package / registry). See AGENTS.md.
 import { createNativeChannel } from "../../packages/unidorm-bridge/src/adapters/native";
 import { saveDownload } from "../native/downloads";
 import { backgroundColorFor, INDICATOR_COLOR } from "../theme";
@@ -74,7 +74,7 @@ export default function WebViewContainer({ url, mode }: Props) {
   // `useBridgeHandlers`.
   //
   // The cast below papers over a duplicate-install quirk, not a real type
-  // mismatch: the bridge submodule (packages/unidorm-bridge) has its own
+  // mismatch: the bridge folder (packages/unidorm-bridge) has its own
   // node_modules/react-native-webview (13.17.0) separate from the app's root
   // one (13.16.1), so TS resolves two structurally-different `WebView`
   // classes (their default generic differs: `{}` vs `undefined`) for what is
