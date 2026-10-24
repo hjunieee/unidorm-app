@@ -28,7 +28,7 @@ function isDeepLinkHost(host: string): boolean {
  * The portal path a home screen widget's link points at, or `null` when `url`
  * isn't a widget link.
  *
- * Widgets open `intipmobileapp://widget/<portal path>` — `widget/timetable`,
+ * Widgets open `unidormapp://widget/<portal path>` — `widget/timetable`,
  * `widget/home/menu?category=학생식당`. A custom scheme rather than an https
  * portal link on purpose: a widget tap has to land in *this* app, and an https
  * link on Android goes wherever App Link verification says, which in a dev

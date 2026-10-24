@@ -22,7 +22,7 @@
  * `bridgeCapabilities` rather than folding it into `share`.
  */
 import { Platform, Share } from 'react-native';
-import type { SharePayload, ShareResultPayload } from '../../packages/intip-bridge/src/messages';
+import type { SharePayload, ShareResultPayload } from '../../packages/unidorm-bridge/src/messages';
 
 /** Join non-empty parts with a newline, dropping blanks. */
 function joinNonEmpty(parts: (string | undefined)[]): string {

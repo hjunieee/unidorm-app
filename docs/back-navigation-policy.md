@@ -1,7 +1,7 @@
 # 뒤로가기 정책 (앱 전반)
 
 `unidorm-app#15` 로 정리된, 셸(네이티브)과 웹(UNIDorm-web) 사이의 뒤로가기
-역할 분담. 세 저장소(mobile / web / intip-bridge)가 함께 지킨다.
+역할 분담. 세 저장소(mobile / web / unidorm-bridge)가 함께 지킨다.
 
 ## 원칙
 
@@ -55,5 +55,5 @@ SPA 깊이는 `window.history.length` 로 알 수 없다(서브페이지 웹뷰�
 
 ## 브릿지 계약
 
-`intip-bridge` 의 `checkBack`(Native→Web) / `backResult`(Web→Native, `{ handled }`).
+`unidorm-bridge` 의 `checkBack`(Native→Web) / `backResult`(Web→Native, `{ handled }`).
 `channel.request()` / `channel.reply()` 의 id 상관관계를 그대로 쓴다.

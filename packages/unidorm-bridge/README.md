@@ -1,6 +1,6 @@
-# @inu-appcenter/intip-bridge
+# @unidorm/bridge
 
-`intip-mobile-app`(네이티브, Expo) ↔ `inu-portal-web`(웹, Vite) 사이의 WebView 브릿지를
+`unidorm-app`(네이티브, Expo) ↔ `UNIDorm-web`(웹, Vite) 사이의 WebView 브릿지를
 **Zod 스키마로 엄격하게 타입화한 단일 소스 패키지**. 양쪽 레포가 이 패키지를 공유 import 하여
 동일한 메시지 스키마로 직렬화/검증한다.
 
@@ -13,11 +13,11 @@
 ## 설치 (GitHub Packages)
 
 > **NOTE**: 아래 GitHub Packages 설치 안내는 더 이상 실제 소비 방식이 아니다.
-> `intip-mobile-app`과 `inu-portal-web` 둘 다 이 레포를 `packages/intip-bridge`
+> `unidorm-app`과 `UNIDorm-web` 둘 다 이 레포를 `packages/unidorm-bridge`
 > git submodule로 vendoring해 **소스에서 직접 컴파일**한다(상대 경로 import,
 > npm 패키지 아님). 계약을 바꿀 때는 npm publish/버전업 없이, 이 레포에서
 > commit+push 한 뒤 두 소비 레포에서 `git submodule update --remote
-> packages/intip-bridge` 로 SHA pin만 올린다. 아래 절차는 과거 배포 방식의
+> packages/unidorm-bridge` 로 SHA pin만 올린다. 아래 절차는 과거 배포 방식의
 > 기록으로 남겨둔다.
 
 소비 레포의 루트에 `.npmrc` 추가:
@@ -30,17 +30,17 @@
 그 다음:
 
 ```sh
-npm install @inu-appcenter/intip-bridge
+npm install @unidorm/bridge
 ```
 
 > `GITHUB_TOKEN`은 `read:packages` 권한이 있는 PAT. CI는 `secrets.GITHUB_TOKEN` 사용.
 
 ## 사용
 
-### 웹 (inu-portal-web)
+### 웹 (UNIDorm-web)
 
 ```ts
-import { createWebChannel } from "@inu-appcenter/intip-bridge/web";
+import { createWebChannel } from "@unidorm/bridge/web";
 
 const channel = createWebChannel(); // ReactNativeWebView 없으면(브라우저/구앱) null
 if (channel) {
@@ -50,10 +50,10 @@ if (channel) {
 }
 ```
 
-### 네이티브 (intip-mobile-app)
+### 네이티브 (unidorm-app)
 
 ```ts
-import { createNativeChannel } from "@inu-appcenter/intip-bridge/native";
+import { createNativeChannel } from "@unidorm/bridge/native";
 
 const { channel, onMessage } = createNativeChannel(webViewRef);
 channel.on("navigateTo", ({ path, url }) => pushWebView(url));

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BackHandler, Platform } from 'react-native';
 
-import { nativeAlert } from '../../modules/intip-native-dialog';
+import { nativeAlert } from '../../modules/unidorm-native-dialog';
 import SplashArt from '../components/SplashArt';
 import WebViewContainer from '../components/WebViewContainer';
 import { isConnected } from '../native/network';

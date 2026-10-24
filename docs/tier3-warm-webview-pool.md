@@ -42,7 +42,7 @@ WebViewProvider
 - **프로덕션 빌드**로 `localhost:5173` 대신 측정(현 dev 서버 confound 제거): `UNIDorm-web`에서 `npm run build && npx vite preview --port 5173`.
 - 콜드 push 지연을 수치화해 Tier 3 도입의 이득 폭을 확정(여기서 충분하면 범위 축소 가능).
 
-### Phase 1 — 브릿지 스키마 확장 (`@inu-appcenter/intip-bridge`)
+### Phase 1 — 브릿지 스키마 확장 (`@unidorm/bridge`)
 `src/messages.ts`에 메시지 2종 추가(구체 union + drift 가드 패턴 그대로):
 - **`prewarm`** (Web→Native), value `{ url: string; path: string }` — touchstart 인텐트.
 - **`setActive`** (Native→Web), value `boolean` — parked 웹뷰 suspend(false)/resume(true).
@@ -141,7 +141,7 @@ M1/M2는 구현·기본 시나리오까지 시뮬레이터에서 검증됨(`WebV
 
 | 레포 | 파일 | 작업 |
 |---|---|---|
-| intip-bridge | `src/messages.ts` | `prewarm`/`setActive` 추가 + republish |
+| unidorm-bridge | `src/messages.ts` | `prewarm`/`setActive` 추가 + republish |
 | UNIDorm-web | `src/utils/bridgeChannel.ts` | `setActive` 핸들러(suspend/resume) |
 | UNIDorm-web | `src/utils/suspendable.ts` (신규) | suspendable 구독 레지스트리 |
 | UNIDorm-web | `src/utils/bridgeChannel.ts` / 네비 유틸 | touchstart→`prewarm` 인텐트 |

@@ -6,7 +6,7 @@
 import type { RefObject } from "react";
 import type WebView from "react-native-webview";
 
-import type { createNativeChannel } from "../../../packages/intip-bridge/src/adapters/native";
+import type { createNativeChannel } from "../../../packages/unidorm-bridge/src/adapters/native";
 
 /** The container's single WebView ref, shared by every hook. */
 export type WebViewRef = RefObject<WebView | null>;

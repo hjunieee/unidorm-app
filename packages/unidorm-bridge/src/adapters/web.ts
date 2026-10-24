@@ -2,7 +2,7 @@ import { PlatformChannel, type ChannelOptions, type Transport } from "../channel
 import { NativeToWeb, WebToNative } from "../messages";
 
 /**
- * 웹(inu-portal-web)용 채널.
+ * 웹(UNIDorm-web)용 채널.
  *
  *  - 보냄(Web -> Native): `window.ReactNativeWebView.postMessage(raw)`
  *  - 받음(Native -> Web): `window`/`document` 의 'message' 이벤트

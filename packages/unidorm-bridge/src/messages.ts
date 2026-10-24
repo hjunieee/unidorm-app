@@ -3,7 +3,7 @@ import { z } from "zod";
 /**
  * 모든 브릿지 메시지의 단일 소스(single source of truth).
  *
- * 웹(inu-portal-web)과 네이티브(intip-mobile-app)가 이 패키지를 공유 import 하여
+ * 웹(UNIDorm-web)과 네이티브(unidorm-app)가 이 패키지를 공유 import 하여
  * 동일한 스키마로 직렬화/검증한다. event 별 payload 타입은 discriminated union
  * 으로 강제되며, 런타임에는 Zod 가 경계에서 검증한다.
  *
@@ -254,7 +254,7 @@ const webToNativeSchema = z.discriminatedUnion("event", [
 const nativeToWebSchema = z.discriminatedUnion("event", [
   // FCM 토큰 전달 (기존 window.onReceiveFcmToken)
   def("receiveFcmToken", z.string()),
-  // 푸시 탭 딥링크 (기존 window.__intipNavigate)
+  // 푸시 탭 딥링크
   def("navigate", z.string()),
   // 네이티브 자체 리프레시(백그라운드 FCM 토큰 등록 등) 결과를 웹 store/localStorage에 반영.
   def("tokenInfoUpdated", TokenInfoPayload),

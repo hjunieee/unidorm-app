@@ -5,7 +5,7 @@ import { Gesture } from "react-native-gesture-handler";
 import {
   muteWebViewHaptics,
   unmuteWebViewHaptics,
-} from "../../../modules/intip-system-gestures";
+} from "../../../modules/unidorm-system-gestures";
 
 /**
  * Travel (dp) that commits a touch to being a swipe rather than a tap. Kept

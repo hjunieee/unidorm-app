@@ -10,7 +10,7 @@
  */
 import { Alert, Platform, type AlertButton } from 'react-native';
 
-import IntipNativeDialogModule from './src/IntipNativeDialogModule';
+import UnidormNativeDialogModule from './src/UnidormNativeDialogModule';
 
 export type NativeAlertOptions = {
   cancelable?: boolean;
@@ -31,13 +31,13 @@ export function nativeAlert(
   buttons?: AlertButton[],
   options?: NativeAlertOptions,
 ): void {
-  if (Platform.OS !== 'android' || !IntipNativeDialogModule) {
+  if (Platform.OS !== 'android' || !UnidormNativeDialogModule) {
     Alert.alert(title, message, buttons, options);
     return;
   }
 
   const list = buttons ?? [];
-  IntipNativeDialogModule.showAlert({
+  UnidormNativeDialogModule.showAlert({
     title,
     message,
     // An empty list makes the native side fall back to the OS-localised "OK".

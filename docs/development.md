@@ -21,7 +21,7 @@
 
 ### 저장소 클론 (서브모듈 포함)
 
-브릿지 계약은 npm 패키지가 아니라 **git 서브모듈**(`packages/intip-bridge`)로
+브릿지 계약은 npm 패키지가 아니라 **git 서브모듈**(`packages/unidorm-bridge`)로
 들어옵니다. 초기화하지 않으면 타입체크와 빌드가 모두 깨집니다.
 
 ```bash
@@ -87,7 +87,7 @@ npx expo run:ios       # 또는: npx expo run:android
 
 ### 로컬 Expo 모듈
 
-`modules/intip-native-dialog`는 Android에서 기기 자체 다이얼로그 테마로 알림을
+`modules/unidorm-native-dialog`는 Android에서 기기 자체 다이얼로그 테마로 알림을
 띄우기 위한 Kotlin 모듈입니다. `requireOptionalNativeModule`로 불러오므로,
 모듈이 없는 바이너리(iOS, 또는 이 모듈보다 앞선 OTA 번들)에서는 RN의 `Alert`로
 자동 폴백합니다.
@@ -147,7 +147,7 @@ import하는 소스만 import 추적을 통해 타입체크됩니다.
 
 ## 5. 브릿지 서브모듈 다루기
 
-`packages/intip-bridge`는 npm 패키지가 아니라 **git 서브모듈이며 소스에서 직접
+`packages/unidorm-bridge`는 npm 패키지가 아니라 **git 서브모듈이며 소스에서 직접
 컴파일**됩니다(`WebViewContainer.tsx`의 상대 경로 import). `UNIDorm-web`도
 같은 방식으로 씁니다.
 
@@ -157,8 +157,8 @@ import하는 소스만 import 추적을 통해 타입체크됩니다.
   올립니다.
 
   ```bash
-  git submodule update --remote packages/intip-bridge
-  git add packages/intip-bridge
+  git submodule update --remote packages/unidorm-bridge
+  git add packages/unidorm-bridge
   ```
 
   `UNIDorm-web`에서도 동일하게 핀을 올립니다. npm publish도, 버전 bump도,
@@ -290,7 +290,7 @@ GitHub-hosted 러너는 분 단위로 과금되고 macOS는 단가가 10배라, 
 | 시크릿 | 용도 |
 | --- | --- |
 | `EXPO_TOKEN` | EAS Update 발행 |
-| `SUBMODULE_TOKEN` | `intip-bridge` 서브모듈 체크아웃 |
+| `SUBMODULE_TOKEN` | `unidorm-bridge` 서브모듈 체크아웃 |
 | `GOOGLE_SERVICES_JSON_BASE` / `GOOGLE_SERVICE_INFO_PLIST_BASE` | Firebase 설정 (base64) |
 | `ANDROID_RELEASE_KEYSTORE_BASE`, `ANDROID_RELEASE_KEY_ALIAS`, `ANDROID_RELEASE_KEY_PASSWORD`, `ANDROID_RELEASE_STORE_PASSWORD` | Android 릴리스 서명 |
 | `IOS_DISTRIBUTION_CERTIFICATE_P`, `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD`, `IOS_PROVISIONING_PROFILE_BASE`, `IOS_CI_KEYCHAIN_PASSWORD` | iOS 수동 서명 |

@@ -23,11 +23,11 @@ describe('parseBridgeMessage', () => {
   it('parses navigateTo with a valid payload', () => {
     const raw = JSON.stringify({
       type: 'navigateTo',
-      payload: { path: '/board/12', url: 'https://intip.inuappcenter.kr/board/12' },
+      payload: { path: '/board/12', url: 'https://unidorm.inuappcenter.kr/board/12' },
     });
     expect(parseBridgeMessage(raw)).toEqual({
       type: 'navigateTo',
-      payload: { path: '/board/12', url: 'https://intip.inuappcenter.kr/board/12' },
+      payload: { path: '/board/12', url: 'https://unidorm.inuappcenter.kr/board/12' },
     });
   });
 
@@ -38,10 +38,10 @@ describe('parseBridgeMessage', () => {
   });
 
   it('defaults navigateTo path to an empty string when missing', () => {
-    const raw = JSON.stringify({ type: 'navigateTo', payload: { url: 'https://intip.inuappcenter.kr/x' } });
+    const raw = JSON.stringify({ type: 'navigateTo', payload: { url: 'https://unidorm.inuappcenter.kr/x' } });
     expect(parseBridgeMessage(raw)).toEqual({
       type: 'navigateTo',
-      payload: { path: '', url: 'https://intip.inuappcenter.kr/x' },
+      payload: { path: '', url: 'https://unidorm.inuappcenter.kr/x' },
     });
   });
 

@@ -20,7 +20,7 @@ does not persist between commands, so the `unset -f` must be in the same line.
 # Shared bridge — git submodule (NOT an npm package)
 
 The native↔web message contract (`inu-appcenter/intip-bridge`) is consumed here
-as a **git submodule** at `packages/intip-bridge`, compiled **from source** (a
+as a **git submodule** at `packages/unidorm-bridge`, compiled **from source** (a
 relative import in `src/components/WebViewContainer.tsx`). It is no longer an
 npm / GitHub Packages dependency. `UNIDorm-web` uses it the same way.
 
@@ -32,8 +32,8 @@ npm / GitHub Packages dependency. `UNIDorm-web` uses it the same way.
   `eslint.config.js` `ignores: ["packages/**"]`); only the source we import is
   type-checked (via import-following).
 - **Changing the contract**: edit + commit + push in the bridge repo, then bump
-  the pin here — `git submodule update --remote packages/intip-bridge && git add
-  packages/intip-bridge` — and do the same in `UNIDorm-web`. No npm publish,
+  the pin here — `git submodule update --remote packages/unidorm-bridge && git add
+  packages/unidorm-bridge` — and do the same in `UNIDorm-web`. No npm publish,
   version bump, or `npm update`; the pin is a git SHA, not a semver.
 - The bridge source must compile under **both** consumers' strict tsconfig
   (e.g. the web's `noUnusedLocals`).
@@ -43,17 +43,17 @@ npm / GitHub Packages dependency. `UNIDorm-web` uses it the same way.
 `expo-widgets-glance` (Android/Jetpack Glance renderer for `expo-widgets` home
 screen widgets — see `src/widgets/*.tsx`) is a **standalone OSS package**,
 published at [`KimWash/expo-widgets-glance`](https://github.com/KimWash/expo-widgets-glance)
-and (once published) on npm as `expo-widgets-glance`. Unlike `intip-bridge`
+and (once published) on npm as `expo-widgets-glance`. Unlike `unidorm-bridge`
 above, it's meant to be generically reusable outside this app — so it's
 consumed here as a git submodule **for now**, pinned to a real npm release
 being cut. Once that lands, switch `package.json`'s
 `"expo-widgets-glance": "file:packages/expo-widgets-glance"` to a real
 version range (`"^0.1.0"`) and drop the submodule — no reason to keep both.
 
-- **Clone**: same as `intip-bridge` — `git clone --recurse-submodules …`, or
+- **Clone**: same as `unidorm-bridge` — `git clone --recurse-submodules …`, or
   `git submodule update --init` after a plain clone. `npm run postinstall`
   (runs automatically after `npm install`) handles this plus the one thing
-  `intip-bridge` doesn't need: the submodule's own config plugin ships
+  `unidorm-bridge` doesn't need: the submodule's own config plugin ships
   pre-built JS (`plugin/build/`) in its **npm tarball**, but that directory is
   gitignored in the source repo — so a submodule checkout needs
   `cd packages/expo-widgets-glance && npm install && npm run build:plugin`

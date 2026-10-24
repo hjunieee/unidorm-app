@@ -14,7 +14,7 @@ import { portalUrlFor } from '../webview/constants';
 import type { NavIntent } from '../push/navIntent';
 
 /**
- * Non-main-tab sub-page in the portal (`inu-portal-web`'s
+ * Non-main-tab sub-page in the portal (`UNIDorm-web`'s
  * `ROUTES.TIMETABLE.CALCULATOR`). Hardcoded rather than shared — the two
  * repos have no shared route constants (see AGENTS.md: the only shared
  * contract is the bridge submodule).

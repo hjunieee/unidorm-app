@@ -6,7 +6,7 @@
 import * as Updates from "expo-updates";
 import { Platform } from "react-native";
 
-import { nativeAlert } from "../../modules/intip-native-dialog";
+import { nativeAlert } from "../../modules/unidorm-native-dialog";
 
 let checkStarted = false;
 

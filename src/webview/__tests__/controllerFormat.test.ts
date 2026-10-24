@@ -11,24 +11,24 @@ import {
 
 const root: StackEntryLike = {
   mode: 'root',
-  url: 'https://intip.inuappcenter.kr/home',
+  url: 'https://unidorm.inuappcenter.kr/home',
   path: '/home',
   canGoBack: false,
 };
 const sub: StackEntryLike = {
   mode: 'sub',
-  url: 'https://intip.inuappcenter.kr/board/12?tab=1',
+  url: 'https://unidorm.inuappcenter.kr/board/12?tab=1',
   path: '/board/12',
   canGoBack: true,
 };
 
 describe('shortUrl', () => {
   it('reduces a portal URL to its path + query', () => {
-    expect(shortUrl('https://intip.inuappcenter.kr/board/12?tab=1')).toBe('/board/12?tab=1');
+    expect(shortUrl('https://unidorm.inuappcenter.kr/board/12?tab=1')).toBe('/board/12?tab=1');
   });
 
   it('falls back to the host for a bare origin', () => {
-    expect(shortUrl('https://intip.inuappcenter.kr/')).toBe('intip.inuappcenter.kr');
+    expect(shortUrl('https://unidorm.inuappcenter.kr/')).toBe('unidorm.inuappcenter.kr');
   });
 
   it('returns the input unchanged when it is not a URL', () => {
