@@ -17,6 +17,7 @@ import messaging from '@react-native-firebase/messaging';
 import notifee, {
   AndroidGroupAlertBehavior,
   AndroidImportance,
+  AndroidStyle,
   EventType,
 } from '@notifee/react-native';
 import { ensureAndroidPostNotifications } from '../native/permissions';
@@ -227,7 +228,8 @@ async function handleDisplayNotification(remoteMessage: any): Promise<void> {
     data?.chatRoomName ||
     data?.title ||
     (chatRoomId ? '새 메시지' : '알림');
-  const body = remoteMessage.notification?.body || data?.messageText || data?.body || '';
+  const rawBody = remoteMessage.notification?.body || data?.messageText || data?.body || '';
+  const body = typeof rawBody === 'string' ? rawBody.replace(/\\n/g, '\n') : '';
 
   const notificationId = remoteMessage.messageId || String(Date.now());
 
@@ -254,6 +256,7 @@ async function handleDisplayNotification(remoteMessage: any): Promise<void> {
     android: {
       channelId,
       pressAction: { id: 'default' },
+      ...(body ? { style: { type: AndroidStyle.BIGTEXT, text: body } } : {}),
       ...(muted ? {} : { sound: 'default' }),
       ...(chatRoomId ? { groupId: chatRoomId } : {}),
     },

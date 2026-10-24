@@ -12,6 +12,7 @@ jest.mock('@notifee/react-native', () => ({
     cancelDisplayedNotifications: jest.fn(),
   },
   AndroidImportance: { HIGH: 4, LOW: 2, MIN: 1 },
+  AndroidStyle: { BIGTEXT: 1 },
 }));
 
 const mockBroadcastFcmToken = jest.fn();

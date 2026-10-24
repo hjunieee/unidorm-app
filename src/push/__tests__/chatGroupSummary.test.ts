@@ -34,6 +34,7 @@ jest.mock('@notifee/react-native', () => ({
   },
   AndroidGroupAlertBehavior: { CHILDREN: 1 },
   AndroidImportance: { HIGH: 4, LOW: 2 },
+  AndroidStyle: { BIGTEXT: 1 },
   EventType: { PRESS: 1, DISMISSED: 0 },
 }));
 
@@ -153,3 +154,50 @@ it('chatRoomIdOf extracts room id for all chat types, numeric ids, and targetId'
   expect(chatRoomIdOf({ type: 'ANNOUNCEMENT', chatRoomId: '60' })).toBeNull();
   expect(chatRoomIdOf(undefined)).toBeNull();
 });
+
+it('applies AndroidStyle.BIGTEXT with normalized newlines so long bodies expand in tray', async () => {
+  await receiveRaw({
+    messageId: 'bigtext-1',
+    data: {
+      type: 'ANNOUNCEMENT',
+      title: '공지사항',
+      body: '첫 번째 줄\\n두 번째 줄\n세 번째 줄',
+    },
+  });
+
+  const call = mockDisplay.mock.calls.find(
+    ([arg]) => (arg as { id: string }).id === 'bigtext-1'
+  );
+  expect(call).toBeDefined();
+  const notification = call?.[0] as {
+    body?: string;
+    android?: { style?: { type: number; text: string } };
+  };
+  expect(notification.body).toBe('첫 번째 줄\n두 번째 줄\n세 번째 줄');
+  expect(notification.android?.style).toEqual({
+    type: 1,
+    text: '첫 번째 줄\n두 번째 줄\n세 번째 줄',
+  });
+});
+
+it('omits android.style when body is empty', async () => {
+  await receiveRaw({
+    messageId: 'empty-body-1',
+    data: {
+      type: 'ANNOUNCEMENT',
+      title: '제목만 있는 공지',
+    },
+  });
+
+  const call = mockDisplay.mock.calls.find(
+    ([arg]) => (arg as { id: string }).id === 'empty-body-1'
+  );
+  expect(call).toBeDefined();
+  const notification = call?.[0] as {
+    body?: string;
+    android?: { style?: unknown };
+  };
+  expect(notification.body).toBe('');
+  expect(notification.android?.style).toBeUndefined();
+});
+

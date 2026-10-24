@@ -19,6 +19,7 @@ jest.mock('@notifee/react-native', () => ({
   },
   AndroidGroupAlertBehavior: { CHILDREN: 1 },
   AndroidImportance: { HIGH: 4, LOW: 2 },
+  AndroidStyle: { BIGTEXT: 1 },
   EventType: { PRESS: 1, DISMISSED: 0 },
 }));
 
