@@ -5,7 +5,7 @@
  * suspended content processes), so in dev builds we patch the web context's
  * console and forward every call over `ReactNativeWebView.postMessage`.
  *
- * The relay deliberately does NOT ride the `@inu-appcenter/intip-bridge`
+ * The relay deliberately does NOT ride the `@unidorm/bridge`
  * PlatformChannel: it is a dev tool, not part of the native<->web contract,
  * and adding it there would force a cross-repo schema bump. Instead messages
  * carry their own marker key and are intercepted (and swallowed) in
@@ -13,7 +13,7 @@
  */
 
 /** Top-level key marking a relayed console message. Not a bridge event. */
-export const WEB_CONSOLE_MARKER = '__intipConsole';
+export const WEB_CONSOLE_MARKER = '__unidormConsole';
 
 const LEVELS = ['log', 'info', 'warn', 'error', 'debug'] as const;
 type Level = (typeof LEVELS)[number];
@@ -25,8 +25,8 @@ type Level = (typeof LEVELS)[number];
  */
 export const WEB_CONSOLE_SCRIPT = `
 (function () {
-  if (window.__intipConsoleRelayReady) return;
-  window.__intipConsoleRelayReady = true;
+  if (window.__unidormConsoleRelayReady) return;
+  window.__unidormConsoleRelayReady = true;
 
   function toText(arg) {
     if (typeof arg === 'string') return arg;

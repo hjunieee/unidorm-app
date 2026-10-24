@@ -4,7 +4,7 @@
  *
  * 배경: ios-reissue-provisioning-profile.js가 짧은 시간 안에 여러 Bundle ID
  * (메인 앱 + Extension)에 대해 연달아 돌면, 기본 프로파일 이름이 분 단위
- * 타임스탬프(`INTIP App Store <YYYYMMDD-HHmm>`)라 같은 분 안이면 이름이
+ * 타임스탬프(`UNIDorm App Store <YYYYMMDD-HHmm>`)라 같은 분 안이면 이름이
  * 겹친다. App Store Connect는 이름 중복인 채로 새 프로파일 생성을 막는다
  * (POST /profiles → 409 "Multiple profiles found with the name '...'").
  * 이 스크립트로 이름이 겹친 것들을 지우고 재발급하면 된다.
@@ -16,12 +16,12 @@
  *   # 이름으로 몇 개나 걸리는지 먼저 확인 (삭제 안 함)
  *   node scripts/ios-delete-profile.js `
  *     --key <AuthKey_XXXXXXXXXX.p8 경로> --key-id <id> --issuer <issuer-id> `
- *     --name "INTIP App Store 20260903-1836"
+ *     --name "UNIDorm App Store 20260903-1836"
  *
  *   # 확인 후 실제 삭제
  *   node scripts/ios-delete-profile.js `
  *     --key <...> --key-id <id> --issuer <issuer-id> `
- *     --name "INTIP App Store 20260903-1836" --yes
+ *     --name "UNIDorm App Store 20260903-1836" --yes
  *
  *   # 특정 프로파일 하나만 id로 삭제
  *   node scripts/ios-delete-profile.js --key <...> --issuer <issuer-id> `
@@ -51,7 +51,7 @@ function usage(exitCode) {
     `사용법 (PowerShell):\n` +
       `  node scripts/ios-delete-profile.js \`\n` +
       `    --key <AuthKey_XXXXXXXXXX.p8 경로> --key-id <id> --issuer <issuer-id> \`\n` +
-      `    --name "INTIP App Store 20260903-1836" [--keep-latest] [--yes]\n\n` +
+      `    --name "UNIDorm App Store 20260903-1836" [--keep-latest] [--yes]\n\n` +
       `  node scripts/ios-delete-profile.js --key <...> --issuer <issuer-id> \`\n` +
       `    --profile-id <profile-resource-id> --yes\n\n` +
       `옵션 (또는 환경변수):\n` +

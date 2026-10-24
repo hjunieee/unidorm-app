@@ -49,7 +49,7 @@ export const PUSH_EXTERNAL_HOSTS = ["inu.ac.kr"] as const;
  *
  * Must stay in sync with `app.json` (`ios.associatedDomains`,
  * `android.intentFilters`) and with the domain-association files the web repo
- * serves (`inu-portal-web`, `public/app-links/`). The native side decides
+ * serves (`UNIDorm-web`, `public/app-links/`). The native side decides
  * *whether* the app opens at all; this list is what the JS side then trusts.
  */
 export const DEEP_LINK_HOSTS = [

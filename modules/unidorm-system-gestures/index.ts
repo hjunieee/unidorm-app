@@ -2,9 +2,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Dimensions, Platform } from 'react-native';
 
-import IntipSystemGesturesModule, {
+import UnidormSystemGesturesModule, {
   type GestureInsets,
-} from './src/IntipSystemGesturesModule';
+} from './src/UnidormSystemGesturesModule';
 
 export type { GestureInsets };
 
@@ -14,7 +14,7 @@ export const FALLBACK_GESTURE_EDGE_DP = 30;
 function read(): GestureInsets | null {
   if (Platform.OS !== 'android') return null;
   try {
-    return IntipSystemGesturesModule?.getGestureInsets() ?? null;
+    return UnidormSystemGesturesModule?.getGestureInsets() ?? null;
   } catch {
     return null;
   }
@@ -22,7 +22,7 @@ function read(): GestureInsets | null {
 
 export const canMuteWebViewHaptics =
   Platform.OS === 'android' &&
-  typeof IntipSystemGesturesModule?.setWebViewHapticsEnabled === 'function';
+  typeof UnidormSystemGesturesModule?.setWebViewHapticsEnabled === 'function';
 
 /**
  * 백 제스처 영역에서 시작한 터치의 웹뷰 롱프레스 햅틱을 막는 최소 시간(ms).
@@ -39,7 +39,7 @@ let mutedAt = 0;
 let unmuteTimer: ReturnType<typeof setTimeout> | null = null;
 
 function setHaptics(enabled: boolean): void {
-  IntipSystemGesturesModule?.setWebViewHapticsEnabled?.(enabled).catch(() => {});
+  UnidormSystemGesturesModule?.setWebViewHapticsEnabled?.(enabled).catch(() => {});
 }
 
 /** 영역 터치 시작: 웹뷰 롱프레스 햅틱을 끈다. */

@@ -11,7 +11,7 @@
  */
 import { Platform } from 'react-native';
 import ReactNativeBlobUtil from 'react-native-blob-util';
-import { nativeAlert } from '../../modules/intip-native-dialog';
+import { nativeAlert } from '../../modules/unidorm-native-dialog';
 import { STRINGS } from '../webview/constants';
 import { fileNameFromUrl } from './fileName';
 

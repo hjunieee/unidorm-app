@@ -3,7 +3,7 @@ import { fileNameFromUrl } from '../fileName';
 
 describe('fileNameFromUrl', () => {
   it('takes the last path segment', () => {
-    expect(fileNameFromUrl('https://intip.inuappcenter.kr/files/report.pdf')).toBe('report.pdf');
+    expect(fileNameFromUrl('https://unidorm.inuappcenter.kr/files/report.pdf')).toBe('report.pdf');
   });
 
   it('ignores the query string', () => {

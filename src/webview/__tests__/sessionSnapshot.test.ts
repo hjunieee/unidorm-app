@@ -9,8 +9,8 @@ import {
 
 const session: SessionState = { loggedIn: true, loginAt: 1000, fcmToken: 'tok' };
 const stack = [
-  { mode: 'root' as const, url: 'https://intip.inuappcenter.kr/home', path: '/home', extra: 1 },
-  { mode: 'sub' as const, url: 'https://intip.inuappcenter.kr/board/12', path: '/board/12' },
+  { mode: 'root' as const, url: 'https://unidorm.inuappcenter.kr/home', path: '/home', extra: 1 },
+  { mode: 'sub' as const, url: 'https://unidorm.inuappcenter.kr/board/12', path: '/board/12' },
 ];
 
 describe('serializeSnapshot', () => {
@@ -21,8 +21,8 @@ describe('serializeSnapshot', () => {
       savedAt: 42,
       session: { loggedIn: true, loginAt: 1000, fcmToken: 'tok' },
       stack: [
-        { mode: 'root', url: 'https://intip.inuappcenter.kr/home', path: '/home' },
-        { mode: 'sub', url: 'https://intip.inuappcenter.kr/board/12', path: '/board/12' },
+        { mode: 'root', url: 'https://unidorm.inuappcenter.kr/home', path: '/home' },
+        { mode: 'sub', url: 'https://unidorm.inuappcenter.kr/board/12', path: '/board/12' },
       ],
     });
   });

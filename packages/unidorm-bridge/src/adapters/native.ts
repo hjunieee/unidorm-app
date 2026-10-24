@@ -5,7 +5,7 @@ import { PlatformChannel, type ChannelOptions, type Transport } from "../channel
 import { NativeToWeb, WebToNative } from "../messages";
 
 /**
- * 네이티브(intip-mobile-app)용 채널.
+ * 네이티브(unidorm-app)용 채널.
  *
  *  - 보냄(Native -> Web): `webViewRef.current.postMessage(raw)`
  *    → 웹의 'message' 이벤트로 도착 (web 어댑터가 구독).

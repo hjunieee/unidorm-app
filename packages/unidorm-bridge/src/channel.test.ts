@@ -47,12 +47,12 @@ describe("PlatformChannel", () => {
     const received = vi.fn();
     native.on("navigateTo", received);
 
-    web.send("navigateTo", { path: "/board/12", url: "https://intip.example/board/12" });
+    web.send("navigateTo", { path: "/board/12", url: "https://unidorm.example/board/12" });
 
     await vi.waitFor(() => expect(received).toHaveBeenCalledTimes(1));
     expect(received.mock.calls[0]?.[0]).toEqual({
       path: "/board/12",
-      url: "https://intip.example/board/12",
+      url: "https://unidorm.example/board/12",
     });
   });
 
@@ -103,12 +103,12 @@ describe("PlatformChannel", () => {
     const received = vi.fn();
     native.on("navigateTo", received);
 
-    web.send("navigateTo", { path: "/board/12", url: "https://intip.example/board/12" });
+    web.send("navigateTo", { path: "/board/12", url: "https://unidorm.example/board/12" });
 
     await vi.waitFor(() => expect(received).toHaveBeenCalledTimes(1));
     expect(received.mock.calls[0]?.[0]).toEqual({
       path: "/board/12",
-      url: "https://intip.example/board/12",
+      url: "https://unidorm.example/board/12",
     });
   });
 
@@ -260,7 +260,7 @@ describe("PlatformChannel", () => {
     const native = new PlatformChannel(b, NativeToWeb, WebToNative);
 
     native.on("share", (value, msg) => {
-      expect(value).toEqual({ url: "https://intip.example/board/12", title: "게시글" });
+      expect(value).toEqual({ url: "https://unidorm.example/board/12", title: "게시글" });
       native.reply(msg, "shareResult", {
         status: "shared",
         activityType: "com.apple.UIKit.activity.Mail",
@@ -271,7 +271,7 @@ describe("PlatformChannel", () => {
     const res = await web.requestWithOptions(
       "share",
       { timeoutMs: 5 * 60_000 },
-      { url: "https://intip.example/board/12", title: "게시글" },
+      { url: "https://unidorm.example/board/12", title: "게시글" },
     );
     expect(res).toMatchObject({
       event: "shareResult",
@@ -317,7 +317,7 @@ describe("PlatformChannel", () => {
         const promise = web.requestWithOptions(
           "share",
           { timeoutMs: 60_000 },
-          { url: "https://intip.example" },
+          { url: "https://unidorm.example" },
         );
 
         await vi.advanceTimersByTimeAsync(12_000);
@@ -337,7 +337,7 @@ describe("PlatformChannel", () => {
         const promise = web.requestWithOptions(
           "share",
           { timeoutMs: 2_000 },
-          { url: "https://intip.example" },
+          { url: "https://unidorm.example" },
         );
         const assertion = expect(promise).rejects.toThrow(/timed out/);
 

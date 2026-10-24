@@ -4,8 +4,8 @@ import { useCallback, useEffect, type RefObject } from "react";
 import { Linking } from "react-native";
 import type { WebViewMessageEvent } from "react-native-webview";
 
-import { nativeAlert } from "../../../modules/intip-native-dialog";
-import { PROTOCOL_VERSION } from "../../../packages/intip-bridge/src/messages";
+import { nativeAlert } from "../../../modules/unidorm-native-dialog";
+import { PROTOCOL_VERSION } from "../../../packages/unidorm-bridge/src/messages";
 import { handleAgentBridgeMessage } from "../../agent/agentBridgeHandler";
 import { refreshWithToken, type RefreshOutcome } from "../../native/authTokens";
 import { clearCacheAndReload } from "../../native/cache";
@@ -75,7 +75,7 @@ export function useBridgeHandlers({
   const registry = useWebViewRegistry();
 
   // Dev builds also peel relayed web console messages off before the bridge
-  // channel parses the stream (they're not part of the intip-bridge
+  // channel parses the stream (they're not part of the unidorm-bridge
   // contract); the geo-priming ping is intercepted the same way in every
   // build.
   const onWebViewMessage = useCallback(
@@ -104,10 +104,13 @@ export function useBridgeHandlers({
 
       // AI Agent: Portal account & Academic info messages
       handleAgentBridgeMessage(raw, (response) => {
+        // `intipAgentResult` is the legacy event name the web listened for
+        // before the rename. Drop it once the web that also listens for
+        // `unidormAgentResult` is deployed.
+        const detail = JSON.stringify(response);
         const script = `
-          window.dispatchEvent(new CustomEvent('intipAgentResult', {
-            detail: ${JSON.stringify(response)}
-          }));
+          window.dispatchEvent(new CustomEvent('unidormAgentResult', { detail: ${detail} }));
+          window.dispatchEvent(new CustomEvent('intipAgentResult', { detail: ${detail} }));
           true;
         `;
         webViewRef.current?.injectJavaScript(script);

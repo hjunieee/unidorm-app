@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   canMuteWebViewHaptics,
   useSystemGestureBand,
-} from "../../../modules/intip-system-gestures";
+} from "../../../modules/unidorm-system-gestures";
 import { NATIVE_FEATURES, ROOT_URL } from "../../webview/constants";
 import {
   buildBridgeShimScript,

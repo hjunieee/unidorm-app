@@ -36,7 +36,7 @@ if [ ${#missing[@]} -gt 0 ]; then
   exit 1
 fi
 
-KEYSTORE="${ANDROID_RELEASE_STORE_FILE:-intip.jks}"
+KEYSTORE="${ANDROID_RELEASE_STORE_FILE:-unidorm.jks}"
 if [ ! -f "$KEYSTORE" ]; then
   echo "키스토어를 찾을 수 없다: $KEYSTORE" >&2
   exit 1

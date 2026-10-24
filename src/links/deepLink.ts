@@ -28,7 +28,7 @@ function isDeepLinkHost(host: string): boolean {
  * The portal path a home screen widget's link points at, or `null` when `url`
  * isn't a widget link.
  *
- * Widgets open `intipmobileapp://widget/<portal path>` — `widget/timetable`,
+ * Widgets open `unidormapp://widget/<portal path>` — `widget/timetable`,
  * `widget/home/menu?category=학생식당`. A custom scheme rather than an https
  * portal link on purpose: a widget tap has to land in *this* app, and an https
  * link on Android goes wherever App Link verification says, which in a dev
@@ -39,7 +39,7 @@ function isDeepLinkHost(host: string): boolean {
  * and a bare path doesn't parse.
  */
 function widgetPortalPath(url: string): string | null {
-  const match = /^(?:unidormapp:\/\/|intipmobileapp:\/\/|\/)?widget(?=[/?#]|$)(.*)$/.exec(url);
+  const match = /^(?:unidormapp:\/\/|\/)?widget(?=[/?#]|$)(.*)$/.exec(url);
   if (!match) return null;
   const rest = match[1];
   return rest.startsWith('/') ? rest : `/${rest}`;
@@ -81,9 +81,9 @@ export function resolveDeepLink(url: string): NavIntent | null {
   }
 
   // Custom app schemes (`unidormapp://...`, `unidorm://...`).
-  if (/^(unidormapp|unidorm|intipmobileapp|intip):\/\//i.test(url)) {
+  if (/^(unidormapp|unidorm):\/\//i.test(url)) {
     try {
-      const stripped = url.replace(/^(unidormapp|unidorm|intipmobileapp|intip):\/\//i, '');
+      const stripped = url.replace(/^(unidormapp|unidorm):\/\//i, '');
       const pathWithSlash = stripped.startsWith('/') ? stripped : `/${stripped}`;
       return intentForPortalPath(pathWithSlash);
     } catch {

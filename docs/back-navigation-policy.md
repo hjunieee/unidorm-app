@@ -1,7 +1,7 @@
 # 뒤로가기 정책 (앱 전반)
 
-`intip-mobile-app#15` 로 정리된, 셸(네이티브)과 웹(inu-portal-web) 사이의 뒤로가기
-역할 분담. 세 저장소(mobile / web / intip-bridge)가 함께 지킨다.
+`unidorm-app#15` 로 정리된, 셸(네이티브)과 웹(UNIDorm-web) 사이의 뒤로가기
+역할 분담. 세 저장소(mobile / web / unidorm-bridge)가 함께 지킨다.
 
 ## 원칙
 
@@ -18,7 +18,7 @@ SPA 히스토리가 있는지 아는 쪽은 웹뿐이다. 셸이 이걸 건너�
 | 2 | Android 시스템 백 (버튼 + 엣지 스와이프) | 네이티브가 `checkBack` 을 웹으로 보내고, 웹의 `backResult` 로 결정 |
 | 3 | iOS 스와이프 백 | **비활성화**. iOS 에는 하드웨어 백이 없고, 뒤로가기는 1번(웹 헤더 백버튼)뿐 |
 
-### 웹의 판단 순서 (`inu-portal-web/src/utils/nativeBackRequest.ts`)
+### 웹의 판단 순서 (`UNIDorm-web/src/utils/nativeBackRequest.ts`)
 
 1. 등록된 오버레이/이탈방지 핸들러 (`backHandler`) — 바텀시트, 미저장 경고 등
 2. 이 웹뷰 안에 쌓인 SPA 히스토리 (`pushState` 기반 모달 포함) → `history.back()`
@@ -26,7 +26,7 @@ SPA 히스토리가 있는지 아는 쪽은 웹뿐이다. 셸이 이걸 건너�
 
 SPA 깊이는 `window.history.length` 로 알 수 없다(서브페이지 웹뷰의 초기 length 는
 0 이 아니다). 웹은 문서 진입 시점을 0 으로 두고 각 히스토리 엔트리의 state 에
-깊이를 새겨 추적한다 — `inu-portal-web/src/utils/spaBackDepth.ts`.
+깊이를 새겨 추적한다 — `UNIDorm-web/src/utils/spaBackDepth.ts`.
 
 ### 셸의 처리 (`src/webview/backPolicy.ts`, `WebViewContainer.tsx`)
 
@@ -55,5 +55,5 @@ SPA 깊이는 `window.history.length` 로 알 수 없다(서브페이지 웹뷰�
 
 ## 브릿지 계약
 
-`intip-bridge` 의 `checkBack`(Native→Web) / `backResult`(Web→Native, `{ handled }`).
+`unidorm-bridge` 의 `checkBack`(Native→Web) / `backResult`(Web→Native, `{ handled }`).
 `channel.request()` / `channel.reply()` 의 id 상관관계를 그대로 쓴다.

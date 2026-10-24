@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import type { TokenInfoPayload } from "../../../packages/intip-bridge/src/messages";
+import type { TokenInfoPayload } from "../../../packages/unidorm-bridge/src/messages";
 import { clearTokenInfo, readTokenInfo, saveTokenInfo } from "../../native/secureTokenStore";
 import { parseTokenProbe, resolveWebToken, TOKEN_PROBE_SCRIPT } from "../../webview/tokenProbe";
 import type { WebViewHandle } from "../../webview/WebViewContext";

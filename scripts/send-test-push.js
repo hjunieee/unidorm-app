@@ -3,7 +3,7 @@ const crypto = require("node:crypto");
 
 // ================= [ 설정 영역 ] =================
 const FCM_TOKEN = "";
-const PROJECT_ID = "intip-661f5"; // 예: my-app-12345
+const PROJECT_ID = "uni-dorm"; // 예: my-app-12345
 const SA_KEY_PATH = "./services_account.json"; // 서비스 계정 키 파일 경로
 // =================================================
 

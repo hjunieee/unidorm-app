@@ -7,7 +7,7 @@ export type NativeAlertOptions = {
   cancelable?: boolean;
 };
 
-declare class IntipNativeDialogModule extends NativeModule {
+declare class UnidormNativeDialogModule extends NativeModule {
   /**
    * Resolves with the index of the pressed button in `buttons`, or -1 when the
    * dialog was dismissed without a press (back button / tap outside).
@@ -19,4 +19,4 @@ declare class IntipNativeDialogModule extends NativeModule {
  * Optional on purpose: the module only exists on Android, and a JS bundle can
  * outrun the native binary via EAS Update. Callers fall back to RN's `Alert`.
  */
-export default requireOptionalNativeModule<IntipNativeDialogModule>('IntipNativeDialog');
+export default requireOptionalNativeModule<UnidormNativeDialogModule>('UnidormNativeDialog');
