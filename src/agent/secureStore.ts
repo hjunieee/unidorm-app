@@ -11,7 +11,7 @@ export interface PortalCredentials {
 /**
  * 사용자 포털 학번 및 비밀번호를 기기 하드웨어 보안 영역(iOS Keychain / Android KeyStore)에
  * 안전하게 암호화하여 저장/조회/삭제하는 모듈.
- * (INTIP 서버로는 절대 전송되지 않음)
+ * (유니돔 서버로는 절대 전송되지 않음)
  */
 export const PortalSecureStore = {
   async saveCredentials(credentials: PortalCredentials): Promise<void> {

@@ -3,8 +3,8 @@
 # 개발 빌드 설치 페이지(index.html)와 iOS 무선 설치용 manifest.plist를 만든다.
 #
 #   ./scripts/make-dev-install-page.sh --out-dir <dir> --base-url <url> \
-#       --version 3.0.13 --build 26 --sha abc1234 [--ipa INTIP-dev.ipa] \
-#       [--apk INTIP-dev.apk] [--icon icon.png] [--run-url <actions url>]
+#       --version 3.0.13 --build 26 --sha abc1234 [--ipa unidorm-dev.ipa] \
+#       [--apk unidorm-dev.apk] [--icon icon.png] [--run-url <actions url>]
 #
 # --base-url은 이 빌드 디렉터리의 공개 URL이다(끝에 / 없이). 예:
 #   https://media.inuappcenter.kr/intip-app-artifacts/dev/42-abc1234
@@ -18,8 +18,8 @@ set -euo pipefail
 
 OUT_DIR=""; BASE_URL=""; VERSION=""; BUILD=""; SHA=""
 IPA_NAME=""; APK_NAME=""; ICON_NAME=""; RUN_URL=""
-BUNDLE_ID="${BUNDLE_ID:-kr.inuappcenter.intip.dev}"
-TITLE="${TITLE:-INTIP Dev}"
+BUNDLE_ID="${BUNDLE_ID:-com.inuappcenter.unidorm.dev}"
+TITLE="${TITLE:-유니돔 Dev}"
 
 while [ $# -gt 0 ]; do
   case "$1" in

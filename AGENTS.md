@@ -22,7 +22,7 @@ does not persist between commands, so the `unset -f` must be in the same line.
 The native↔web message contract (`inu-appcenter/intip-bridge`) is consumed here
 as a **git submodule** at `packages/intip-bridge`, compiled **from source** (a
 relative import in `src/components/WebViewContainer.tsx`). It is no longer an
-npm / GitHub Packages dependency. `inu-portal-web` uses it the same way.
+npm / GitHub Packages dependency. `UNIDorm-web` uses it the same way.
 
 - **Clone**: `git clone --recurse-submodules …`, or after a plain clone run
   `git submodule update --init`. CI must init submodules too.
@@ -33,7 +33,7 @@ npm / GitHub Packages dependency. `inu-portal-web` uses it the same way.
   type-checked (via import-following).
 - **Changing the contract**: edit + commit + push in the bridge repo, then bump
   the pin here — `git submodule update --remote packages/intip-bridge && git add
-  packages/intip-bridge` — and do the same in `inu-portal-web`. No npm publish,
+  packages/intip-bridge` — and do the same in `UNIDorm-web`. No npm publish,
   version bump, or `npm update`; the pin is a git SHA, not a semver.
 - The bridge source must compile under **both** consumers' strict tsconfig
   (e.g. the web's `noUnusedLocals`).
@@ -67,4 +67,4 @@ version range (`"^0.1.0"`) and drop the submodule — no reason to keep both.
   rebuild the plugin (`npm run widgets-glance:build`).
 - `src/widgets/*.tsx` files (`NextClassWidget`, `TodayClassesWidget`,
   `BusArrivalWidget`, `CafeteriaMenuWidget`, `TimetableWidget`) stay in this
-  app — they're INTIP-specific, unlike the renderer itself.
+  app — they're UniDorm-specific, unlike the renderer itself.

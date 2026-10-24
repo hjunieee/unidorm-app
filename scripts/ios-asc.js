@@ -44,13 +44,13 @@
  *
  * 예:
  *   node scripts/ios-asc.js cert list --type IOS_DISTRIBUTION
- *   node scripts/ios-asc.js profile list --bundle-id kr.inuappcenter.intip
- *   node scripts/ios-asc.js profile delete --name "INTIP App Store 20260903-1836" --keep-latest --yes
+ *   node scripts/ios-asc.js profile list --bundle-id com.inuappcenter.unidorm
+ *   node scripts/ios-asc.js profile delete --name "UNIDorm App Store 20260903-1836" --keep-latest --yes
  *   node scripts/ios-asc.js app-group check
  *   node scripts/ios-asc.js device list
- *   node scripts/ios-asc.js profile reissue --bundle-id kr.inuappcenter.intip.dev \
- *     --profile-type IOS_APP_ADHOC --profile-name "INTIP Dev Ad Hoc" \
- *     --out INTIP-Dev.mobileprovision.base64
+ *   node scripts/ios-asc.js profile reissue --bundle-id com.inuappcenter.unidorm.dev \
+ *     --profile-type IOS_APP_ADHOC --profile-name "UNIDorm Dev Ad Hoc" \
+ *     --out UNIDorm-Dev.mobileprovision.base64
  *
  * 의존성 없음.
  */
@@ -58,7 +58,7 @@
 const fs = require("node:fs");
 const { createClient, findBundleId, consumeCommonFlag } = require("./lib/asc-client");
 
-const DEFAULT_BUNDLE_ID = "kr.inuappcenter.intip"; // app.json ios.bundleIdentifier
+const DEFAULT_BUNDLE_ID = "com.inuappcenter.unidorm"; // app.json ios.bundleIdentifier
 
 function topLevelUsage(exitCode) {
   console.log(
@@ -187,7 +187,7 @@ const PROFILE_TYPES_REQUIRING_DEVICES = new Set([
 async function profileReissue(client, argv) {
   const args = {
     bundleId: DEFAULT_BUNDLE_ID,
-    out: "./INTIP.mobileprovision.base64",
+    out: "./UNIDorm.mobileprovision.base64",
     profileType: "IOS_APP_STORE",
   };
   for (let i = 0; i < argv.length; i++) {
@@ -241,7 +241,7 @@ async function profileReissue(client, argv) {
     );
   }
 
-  const profileName = args.profileName ?? `INTIP ${args.bundleId} ${timestampSuffix()}`;
+  const profileName = args.profileName ?? `UNIDorm ${args.bundleId} ${timestampSuffix()}`;
   if (args.dryRun) {
     console.log(
       `[dry-run] POST /profiles 생략 — name="${profileName}", type=${args.profileType}, ` +
@@ -573,7 +573,7 @@ async function accessCheck(client, argv) {
   }
 
   console.log("\n[쓰기 테스트] 더미 Bundle ID 생성 → 삭제");
-  const dummyId = `kr.inuappcenter.intip.asc-access-check.${Date.now()}`;
+  const dummyId = `com.inuappcenter.unidorm.asc-access-check.${Date.now()}`;
   let created;
   try {
     created = await client.request("POST", "/bundleIds", {

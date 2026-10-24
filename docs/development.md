@@ -1,6 +1,6 @@
 # 개발 · 배포 가이드
 
-INTIP 네이티브 셸(`intip-mobile-app`)을 로컬에서 돌리고, 검증하고, 배포하는 데
+유니돔 네이티브 셸(`unidorm-app`)을 로컬에서 돌리고, 검증하고, 배포하는 데
 필요한 실무 정보를 모은 문서입니다. 프로젝트의 구조와 설계 의도는
 [README](../README.md)를 참고하세요.
 
@@ -25,7 +25,7 @@ INTIP 네이티브 셸(`intip-mobile-app`)을 로컬에서 돌리고, 검증하�
 들어옵니다. 초기화하지 않으면 타입체크와 빌드가 모두 깨집니다.
 
 ```bash
-git clone --recurse-submodules https://github.com/inu-appcenter/intip-mobile-app.git
+git clone --recurse-submodules https://github.com/inu-appcenter/unidorm-app.git
 # 이미 클론했다면
 git submodule update --init
 ```
@@ -33,7 +33,7 @@ git submodule update --init
 ### Firebase 설정 파일 (필수)
 
 푸시 알림에 `@react-native-firebase`를 쓰기 때문에, 번들 ID
-`kr.inuappcenter.intip` / 패키지 `inu.appcenter.intip_android`에 대응하는 네이티브
+`com.inuappcenter.unidorm` / 패키지 `com.hjunieee.inudormitory`에 대응하는 네이티브
 설정 파일이 필요합니다. **시크릿이라 저장소에 커밋되지 않으며(gitignore)**, 빌드
 전에 프로젝트 루트에 직접 넣어야 합니다.
 
@@ -102,8 +102,8 @@ npx expo run:ios       # 또는: npx expo run:android
 
 | 웹뷰 `ROOT_URL` | API | 사용 시점 |
 | --- | --- | --- |
-| `https://intip.inuappcenter.kr` (기본값) | `https://portal.inuappcenter.kr` | 로컬 빌드 기본, 릴리스 |
-| `https://intip-test.pages.dev` | `https://portal-dev.inuappcenter.kr` | CI dev 빌드, 로컬에서 dev 백엔드를 쓸 때 |
+| `https://unidorm.inuappcenter.kr` (기본값) | `https://unidorm-server.inuappcenter.kr` | 로컬 빌드 기본, 릴리스 |
+| `https://unidorm-test.pages.dev` | `https://inu-dormitory-dev.inuappcenter.kr` | CI dev 빌드, 로컬에서 dev 백엔드를 쓸 때 |
 
 이유: 셸은 웹뷰 로그인에서 넘어온 토큰으로 인증하는데, 토큰은 발급한 백엔드에서만
 유효합니다. 두 값을 따로 고르면(예: `.env`는 dev API, `ROOT_URL`은 운영 웹) 인증이
@@ -112,7 +112,7 @@ npx expo run:ios       # 또는: npx expo run:android
 로컬에서 dev 백엔드를 쓰려면 `.env.local`에 웹뷰 주소를 지정합니다(CI와 같은 방식):
 
 ```bash
-EXPO_PUBLIC_ROOT_URL=https://intip-test.pages.dev
+EXPO_PUBLIC_ROOT_URL=https://unidorm-test.pages.dev
 ```
 
 `EXPO_PUBLIC_API_BASE_URL`은 표에 없는 호스트(로컬 웹 개발 서버 등)에서만 쓰이고,
@@ -148,7 +148,7 @@ import하는 소스만 import 추적을 통해 타입체크됩니다.
 ## 5. 브릿지 서브모듈 다루기
 
 `packages/intip-bridge`는 npm 패키지가 아니라 **git 서브모듈이며 소스에서 직접
-컴파일**됩니다(`WebViewContainer.tsx`의 상대 경로 import). `inu-portal-web`도
+컴파일**됩니다(`WebViewContainer.tsx`의 상대 경로 import). `UNIDorm-web`도
 같은 방식으로 씁니다.
 
 - `zod`가 이 저장소의 **직접 의존성**인 이유가 이것입니다 — 브릿지의
@@ -161,7 +161,7 @@ import하는 소스만 import 추적을 통해 타입체크됩니다.
   git add packages/intip-bridge
   ```
 
-  `inu-portal-web`에서도 동일하게 핀을 올립니다. npm publish도, 버전 bump도,
+  `UNIDorm-web`에서도 동일하게 핀을 올립니다. npm publish도, 버전 bump도,
   `npm update`도 없습니다 — 핀은 semver가 아니라 git SHA입니다.
 - 브릿지 소스는 **두 소비자의 strict tsconfig 양쪽에서** 컴파일되어야 합니다
   (예: 웹의 `noUnusedLocals`).
@@ -195,12 +195,12 @@ OTA(`ota-publish`, `eas update`) 경로에만 씁니다.
 
 | | 운영 | 개발 |
 | --- | --- | --- |
-| iOS bundle ID | `kr.inuappcenter.intip` | `kr.inuappcenter.intip.dev` |
-| Android package | `inu.appcenter.intip_android` | `inu.appcenter.intip_android.dev` |
+| iOS bundle ID | `com.inuappcenter.unidorm` | `com.inuappcenter.unidorm.dev` |
+| Android package | `com.hjunieee.inudormitory` | `com.hjunieee.inudormitory.dev` |
 | 앱 아이콘 | `assets/expo.icon` | `assets/icon-dev.icon` (Icon Composer) / `assets/images/Dev App Icon.png` |
-| associated domain (딥링크) | `intip.inuappcenter.kr` | `intip-test.pages.dev` |
-| URL scheme | `intipmobileapp` | `intipmobileappdev` |
-| 홈 화면 표시 이름 | INTIP | INTIP Dev |
+| associated domain (딥링크) | `unidorm.inuappcenter.kr` | `unidorm-test.pages.dev` |
+| URL scheme | `unidormapp` | `unidormappdev` |
+| 홈 화면 표시 이름 | 유니돔 | 유니돔 Dev |
 | Firebase 설정 | `GoogleService-Info.plist` / `google-services.json` | `GoogleService-Info-Dev.plist` / `google-services-dev.json` |
 
 개발 Firebase 설정 파일(`GoogleService-Info-Dev.plist`,
@@ -208,11 +208,11 @@ OTA(`ota-publish`, `eas update`) 경로에만 씁니다.
 앱 설정이어야 합니다. 저장소 루트에 두되 시크릿이므로 커밋하지 않습니다
 (`.gitignore` 참고). CI는 base64 시크릿(아래 표)에서 디코드합니다.
 
-iOS는 `kr.inuappcenter.intip.dev` bundle ID가 Apple Developer 계정에 먼저
+iOS는 `com.inuappcenter.unidorm.dev` bundle ID가 Apple Developer 계정에 먼저
 등록돼 있어야 하고(`node scripts/ios-asc.js bundle create
-kr.inuappcenter.intip.dev`), 그 bundle ID로 발급한 **Ad Hoc** 프로비저닝
+com.inuappcenter.unidorm.dev`), 그 bundle ID로 발급한 **Ad Hoc** 프로비저닝
 프로파일이 필요합니다(`node scripts/ios-asc.js profile reissue --bundle-id
-kr.inuappcenter.intip.dev` — 단 `profileType`을 `IOS_APP_STORE`가 아니라
+com.inuappcenter.unidorm.dev` — 단 `profileType`을 `IOS_APP_STORE`가 아니라
 Ad Hoc으로 발급하려면 App Store Connect에서 수동으로 만들거나 스크립트를
 확장해야 합니다). 발급한 프로파일을 base64로 인코딩해
 `IOS_DEV_PROVISIONING_PROFILE_BASE64` 시크릿에 저장하세요. distribution
@@ -302,7 +302,7 @@ GitHub-hosted 러너는 분 단위로 과금되고 macOS는 단가가 10배라, 
 | 시크릿 | 용도 |
 | --- | --- |
 | `GOOGLE_SERVICES_DEV_JSON_BASE64` / `GOOGLE_SERVICE_INFO_DEV_PLIST_BASE64` | 개발 bundle ID/package용 Firebase 설정 (base64) |
-| `IOS_DEV_PROVISIONING_PROFILE_BASE64` | `kr.inuappcenter.intip.dev`용 Ad Hoc 프로비저닝 프로파일 (base64) |
+| `IOS_DEV_PROVISIONING_PROFILE_BASE64` | `com.inuappcenter.unidorm.dev`용 Ad Hoc 프로비저닝 프로파일 (base64) |
 
 Android 키스토어와 iOS distribution 인증서는 운영 릴리스와 동일한 시크릿을
 재사용합니다(위 표).
@@ -362,7 +362,7 @@ node scripts/send-test-push.js general --token <FCM_TOKEN>  # 발송
 
 ### 웹뷰 컨트롤러 (개발 빌드 전용)
 
-기기를 흔들거나 세 손가락 롱프레스로 Expo 개발자 메뉴를 열면 INTIP 항목들이
+기기를 흔들거나 세 손가락 롱프레스로 Expo 개발자 메뉴를 열면 웹뷰 컨트롤러 항목들이
 있습니다(`src/webview/devMenu.ts`).
 
 - 현재 스택 / 세션(로그인 여부, FCM 토큰) 조회

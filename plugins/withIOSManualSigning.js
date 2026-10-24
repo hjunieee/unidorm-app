@@ -1,5 +1,6 @@
 /**
- * Pins the INTIP app target — and, once its provisioning profile is
+ * Pins the main app target (`app`, the name `expo prebuild` gives it — see
+ * `ios/app.xcodeproj` in codemagic.yaml) — and, once its provisioning profile is
  * available, the ExpoWidgetsTarget widget extension — to manual code signing
  * instead of Xcode's automatic signing (Release config only).
  *
@@ -30,7 +31,7 @@
  * being set at prebuild time (CI decodes the profile and extracts its `Name`
  * before running `expo prebuild --platform ios` — see
  * `.github/workflows/ci.yml`, "Import signing credentials"):
- *   - INTIP target            → IOS_PROVISIONING_PROFILE_NAME
+ *   - app target              → IOS_PROVISIONING_PROFILE_NAME
  *   - ExpoWidgetsTarget       → IOS_WIDGET_PROVISIONING_PROFILE_NAME
  * Without the relevant env var, that target is left alone (no-op), so local
  * `expo prebuild` / `expo run:ios` is unaffected and keeps using Xcode's
@@ -40,7 +41,7 @@
  */
 const { withXcodeProject } = require("expo/config-plugins");
 
-const APP_TARGET_NAME = "INTIP";
+const APP_TARGET_NAME = "app";
 const WIDGET_TARGET_NAME = "ExpoWidgetsTarget";
 const BUILD_CONFIG = "Release";
 

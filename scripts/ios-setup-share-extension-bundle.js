@@ -29,7 +29,7 @@
  *   --key <path>              AuthKey_<id>.p8 경로   (APP_STORE_CONNECT_KEY_PATH)
  *   --key-id <id>             Key ID, 기본 45D3A26734 (APP_STORE_CONNECT_KEY_ID)
  *   --issuer <id>             Issuer ID               (APP_STORE_CONNECT_ISSUER_ID)
- *   --bundle-id <id>          메인 앱, 기본 kr.inuappcenter.intip
+ *   --bundle-id <id>          메인 앱, 기본 com.inuappcenter.unidorm
  *   --extension-bundle-id <id> 기본 <bundle-id>.share-extension
  *   --dry-run                 계획만 출력, 실제 변경 없음
  *
@@ -41,7 +41,7 @@ const crypto = require("node:crypto");
 
 const API_ROOT = "https://api.appstoreconnect.apple.com/v1";
 const DEFAULT_KEY_ID = "45D3A26734"; // .github/workflows/ci.yml과 동일 — 비밀 아님
-const DEFAULT_BUNDLE_ID = "kr.inuappcenter.intip"; // app.json ios.bundleIdentifier
+const DEFAULT_BUNDLE_ID = "com.inuappcenter.unidorm"; // app.json ios.bundleIdentifier
 
 function usage(exitCode) {
   console.log(
@@ -193,7 +193,7 @@ async function main() {
         type: "bundleIds",
         attributes: {
           identifier: args.extensionBundleId,
-          name: "INTIP Share Extension",
+          name: "UNIDorm Share Extension",
           platform: "IOS",
         },
       },
@@ -224,8 +224,8 @@ async function main() {
   console.log("     App Groups capability에 방금 만든 그룹 체크");
   console.log("  3. 그 다음 두 Bundle ID 각각에 대해 scripts/ios-reissue-provisioning-profile.js 로 프로파일 재발급");
   console.log(`     (파일명이 겹치지 않게 --out 지정 필수):`);
-  console.log(`     --bundle-id ${args.bundleId} --out ./INTIP.mobileprovision.base64`);
-  console.log(`     --bundle-id ${args.extensionBundleId} --out ./INTIP-ShareExtension.mobileprovision.base64`);
+  console.log(`     --bundle-id ${args.bundleId} --out ./UNIDorm.mobileprovision.base64`);
+  console.log(`     --bundle-id ${args.extensionBundleId} --out ./UNIDorm-ShareExtension.mobileprovision.base64`);
 }
 
 main().catch((e) => {

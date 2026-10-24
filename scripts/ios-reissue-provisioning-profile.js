@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * kr.inuappcenter.intip App ID에 Associated Domains capability를 켜고,
+ * com.inuappcenter.unidorm App ID에 Associated Domains capability를 켜고,
  * 그 capability를 포함한 새 App Store 배포용 프로비저닝 프로파일을 발급받는다.
  *
  * 배경: 릴리스가 수동 서명(withIOSManualSigning.js)을 쓰기 때문에, App ID에
@@ -10,7 +10,7 @@
  * 갖고 있는 것을 먼저 확인했다.
  *
  * 이 스크립트가 하는 일 (idempotent):
- *   1. kr.inuappcenter.intip의 현재 capability 조회 — ASSOCIATED_DOMAINS가
+ *   1. com.inuappcenter.unidorm의 현재 capability 조회 — ASSOCIATED_DOMAINS가
  *      이미 있으면 2단계는 건너뜀
  *   2. 없으면 POST /bundleIdCapabilities로 추가
  *   3. Distribution 인증서를 --certificate-id로 지정하거나, 유효한 게
@@ -37,10 +37,10 @@
  *   --key <path>            AuthKey_<id>.p8 경로   (APP_STORE_CONNECT_KEY_PATH)
  *   --key-id <id>           Key ID, 기본 45D3A26734 (APP_STORE_CONNECT_KEY_ID)
  *   --issuer <id>           Issuer ID               (APP_STORE_CONNECT_ISSUER_ID)
- *   --bundle-id <id>        기본 kr.inuappcenter.intip
+ *   --bundle-id <id>        기본 com.inuappcenter.unidorm
  *   --certificate-id <id>   쓸 Distribution 인증서 리소스 id (안 주면 자동 탐지 시도)
- *   --profile-name <name>   기본 "INTIP App Store <YYYYMMDD-HHmm>"
- *   --out <path>            base64 저장 경로, 기본 ./INTIP.mobileprovision.base64
+ *   --profile-name <name>   기본 "UNIDorm App Store <YYYYMMDD-HHmm>"
+ *   --out <path>            base64 저장 경로, 기본 ./UNIDorm.mobileprovision.base64
  *   --list-certificates     인증서 목록만 보고 종료 (발급/변경 없음)
  *   --dry-run               capability/프로파일 생성 없이 계획만 출력
  *
@@ -52,7 +52,7 @@ const crypto = require("node:crypto");
 
 const API_ROOT = "https://api.appstoreconnect.apple.com/v1";
 const DEFAULT_KEY_ID = "45D3A26734"; // .github/workflows/ci.yml과 동일 — 비밀 아님
-const DEFAULT_BUNDLE_ID = "kr.inuappcenter.intip"; // app.json ios.bundleIdentifier
+const DEFAULT_BUNDLE_ID = "com.inuappcenter.unidorm"; // app.json ios.bundleIdentifier
 
 function usage(exitCode) {
   console.log(
@@ -65,8 +65,8 @@ function usage(exitCode) {
       `  --issuer <id>           Issuer ID (APP_STORE_CONNECT_ISSUER_ID)\n` +
       `  --bundle-id <id>        기본 ${DEFAULT_BUNDLE_ID}\n` +
       `  --certificate-id <id>   쓸 Distribution 인증서 리소스 id\n` +
-      `  --profile-name <name>   기본 "INTIP App Store <타임스탬프>"\n` +
-      `  --out <path>            base64 저장 경로, 기본 ./INTIP.mobileprovision.base64\n` +
+      `  --profile-name <name>   기본 "UNIDorm App Store <타임스탬프>"\n` +
+      `  --out <path>            base64 저장 경로, 기본 ./UNIDorm.mobileprovision.base64\n` +
       `  --list-certificates     인증서 목록만 보고 종료\n` +
       `  --dry-run               계획만 출력, 실제 변경 없음\n`,
   );
@@ -74,7 +74,7 @@ function usage(exitCode) {
 }
 
 function parseArgs(argv) {
-  const args = { bundleId: DEFAULT_BUNDLE_ID, out: "./INTIP.mobileprovision.base64" };
+  const args = { bundleId: DEFAULT_BUNDLE_ID, out: "./UNIDorm.mobileprovision.base64" };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--key") args.key = argv[++i];
@@ -251,7 +251,7 @@ async function main() {
   }
 
   // ── 3. 프로파일 발급 ──────────────────────────────────────────────
-  const profileName = args.profileName ?? `INTIP App Store ${timestampSuffix()}`;
+  const profileName = args.profileName ?? `UNIDorm App Store ${timestampSuffix()}`;
   if (args.dryRun) {
     console.log(`[dry-run] POST /profiles 생략 — name="${profileName}", certificate=${certificateId}`);
     return;

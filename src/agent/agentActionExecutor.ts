@@ -149,7 +149,7 @@ export async function executeAgentAction(
     const headers: Record<string, string> = {
       'Content-Type': 'application/json;charset=UTF-8',
       'Accept': 'application/json, text/plain, */*',
-      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 INTIP-Mobile',
+      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 UNIDorm-Mobile',
       ...(request.headers || {}),
     };
 
