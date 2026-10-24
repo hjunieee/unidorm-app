@@ -70,6 +70,37 @@ export type TokenInfoPayload = {
 };
 
 /**
+ * 웹 → 네이티브 토큰 재발급 요청. 서버는 재발급마다 refreshToken 을 교체하므로
+ * 여러 웹뷰가 각자 재발급하면 늦은 쪽이 폐기된 토큰을 보내 로그아웃된다.
+ * `tokenRefresh` 기능을 광고한 셸에서는 웹이 직접 재발급하지 않고 이 요청으로
+ * 네이티브에 맡기며, 네이티브는 같은 토큰에 대해 단 한 번만 서버를 호출한다.
+ */
+export const TokenRefreshRequestPayload = z.object({
+  refreshToken: z.string(),
+});
+export type TokenRefreshRequestPayload = { refreshToken: string };
+
+/**
+ * `requestTokenRefresh` 에 대한 응답(같은 id).
+ *
+ * `ok`       — 새 토큰 쌍. 다른 웹뷰에는 `tokenInfoUpdated` 로도 전파된다.
+ * `rejected` — 서버가 refreshToken 을 거절했다. 세션이 끝났다.
+ * `error`    — 네트워크/서버 오류. 세션은 살아 있을 수 있다.
+ */
+export const TokenRefreshResultPayload = z.object({
+  status: z.enum(["ok", "rejected", "error"]),
+  accessToken: z.string().optional(),
+  refreshToken: z.string().optional(),
+  role: z.string().optional(),
+});
+export type TokenRefreshResultPayload = {
+  status: "ok" | "rejected" | "error";
+  accessToken?: string;
+  refreshToken?: string;
+  role?: string;
+};
+
+/**
  * 멀티 웹뷰 간 임의의 상태 동기화 페이로드(zustand 스토어 스냅샷, 쿼리 캐시
  * 항목 등). `channel` 은 동기화 채널 식별자(예: "user-store-sync")이고
  * `payload` 는 JSON 직렬화 가능한 임의의 값이다 — 브릿지는 이 값의 형태를
@@ -195,6 +226,8 @@ const webToNativeSchema = z.discriminatedUnion("event", [
   def("loginSuccess", z.string().optional()),
   // JWT 동기화: 로그인 성공 / 401 자동 리프레시 성공 시 네이티브 SecureStore로 미러링.
   def("syncTokenInfo", TokenInfoPayload),
+  // 토큰 재발급 위임. 네이티브는 `tokenRefreshResult` 를 같은 id 로 돌려보낸다.
+  def("requestTokenRefresh", TokenRefreshRequestPayload),
   // 멀티 웹뷰 상태 동기화: 이 웹뷰가 보낸 스냅샷을 다른 모든 웹뷰(자신 제외)로
   // 중계해 달라는 요청. BroadcastChannel API 미지원 환경(예: iOS 15.4 미만
   // WKWebView)에서의 폴백이자, 지원 환경에서도 이중 전송 경로로 쓰인다.
@@ -225,6 +258,8 @@ const nativeToWebSchema = z.discriminatedUnion("event", [
   def("navigate", z.string()),
   // 네이티브 자체 리프레시(백그라운드 FCM 토큰 등록 등) 결과를 웹 store/localStorage에 반영.
   def("tokenInfoUpdated", TokenInfoPayload),
+  // `requestTokenRefresh` 에 대한 응답(같은 id).
+  def("tokenRefreshResult", TokenRefreshResultPayload),
   // relayBroadcastSync 로 요청된 스냅샷을 다른 웹뷰(원 발신자 제외)로 전달.
   def("broadcastSyncMessage", BroadcastSyncPayload),
   // 푸시 알림을 탭해 앱으로 진입했음을 알린다. 웹은 fcmMessageId로 읽음 처리와
@@ -257,6 +292,7 @@ export type WebToNative =
   | ({ event: "backResult"; value: BackResultPayload } & Meta)
   | ({ event: "loginSuccess"; value?: string } & Meta)
   | ({ event: "syncTokenInfo"; value: TokenInfoPayload } & Meta)
+  | ({ event: "requestTokenRefresh"; value: TokenRefreshRequestPayload } & Meta)
   | ({ event: "relayBroadcastSync"; value: BroadcastSyncPayload } & Meta)
   | ({ event: "requestAppUpdate"; value?: undefined } & Meta)
   | ({ event: "openAppSettings"; value?: undefined } & Meta)
@@ -275,6 +311,7 @@ export type NativeToWeb =
   | ({ event: "receiveFcmToken"; value: string } & Meta)
   | ({ event: "navigate"; value: string } & Meta)
   | ({ event: "tokenInfoUpdated"; value: TokenInfoPayload } & Meta)
+  | ({ event: "tokenRefreshResult"; value: TokenRefreshResultPayload } & Meta)
   | ({ event: "broadcastSyncMessage"; value: BroadcastSyncPayload } & Meta)
   | ({ event: "notificationOpened"; value: NotificationOpenedPayload } & Meta)
   | ({ event: "checkBack"; value?: undefined } & Meta)

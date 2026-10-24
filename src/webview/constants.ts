@@ -102,7 +102,7 @@ export const APP_UA_SUFFIX = `UNIDormApp/${Constants.expoConfig?.version ?? "3.0
  * Update this whenever a new capability lands (e.g. a future `share:files`
  * once phase-2 image/file sharing ships).
  */
-export const NATIVE_FEATURES = ["share"] as const;
+export const NATIVE_FEATURES = ["share", "tokenRefresh"] as const;
 
 /**
  * Main-tab paths (spec §3.A). These stay inside the single root WebView via SPA

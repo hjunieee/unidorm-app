@@ -63,6 +63,7 @@ import {
 } from "../../modules/intip-system-gestures";
 import { createNativeChannel } from "../../packages/intip-bridge/src/adapters/native";
 import { PROTOCOL_VERSION, type TokenInfoPayload } from "../../packages/intip-bridge/src/messages";
+import { refreshWithToken, type RefreshOutcome } from "../native/authTokens";
 import { clearCacheAndReload, clearWebViewCache } from "../native/cache";
 import { saveDownload } from "../native/downloads";
 import { handleAgentBridgeMessage } from "../agent/agentBridgeHandler";
@@ -188,11 +189,29 @@ const BRIDGE_SHIM_SCRIPT = buildBridgeShimScript(
   Platform.OS === "ios" ? "ios" : "android",
 );
 
+/**
+ * `NATIVE_FEATURES` again, but readable before the page's own code runs. The
+ * web needs to know whether to hand token refresh to native on its very first
+ * request, long before `bridgeCapabilities` could arrive.
+ */
+const NATIVE_FEATURES_SCRIPT =
+  "window.__unidormNativeFeatures=" + JSON.stringify(NATIVE_FEATURES) + ";";
+
 /** Dev builds and dev variant also relay the web's console.* to the Metro log (webConsole.ts). */
 const isDevHost = __DEV__ || ROOT_URL.includes("pages.dev");
 const BEFORE_CONTENT_SCRIPT = isDevHost
-  ? BRIDGE_SHIM_SCRIPT + WEB_CONSOLE_SCRIPT
-  : BRIDGE_SHIM_SCRIPT;
+  ? NATIVE_FEATURES_SCRIPT + BRIDGE_SHIM_SCRIPT + WEB_CONSOLE_SCRIPT
+  : NATIVE_FEATURES_SCRIPT + BRIDGE_SHIM_SCRIPT;
+
+function toTokenRefreshResult(outcome: RefreshOutcome) {
+  if (outcome.status !== "ok") return { status: outcome.status };
+  return {
+    status: "ok" as const,
+    accessToken: outcome.tokenInfo.accessToken,
+    refreshToken: outcome.tokenInfo.refreshToken,
+    role: outcome.role,
+  };
+}
 
 function looksLikeDownload(url: string): boolean {
   const path = url.split("?")[0].toLowerCase();
@@ -944,6 +963,17 @@ export default function WebViewContainer({ url, mode }: Props) {
         void shareContent(value)
           .then((result) => channel.reply(msg, "shareResult", result))
           .catch((error) => console.warn("[bridge] share reply failed", error));
+      }),
+      // Token refresh on the web's behalf: every WebView funnels through
+      // `refreshWithToken`, so two pages booting together cost one server
+      // call instead of the second one being refused for a rotated token.
+      // The other WebViews hear about the new pair via `tokenInfoUpdated`.
+      channel.on("requestTokenRefresh", ({ refreshToken }, msg) => {
+        void refreshWithToken(refreshToken)
+          .then((outcome) =>
+            channel.reply(msg, "tokenRefreshResult", toTokenRefreshResult(outcome)),
+          )
+          .catch((error) => console.warn("[bridge] token refresh reply failed", error));
       }),
       channel.on("onAppReady", () => {
         webBridgeReadyRef.current = true;
