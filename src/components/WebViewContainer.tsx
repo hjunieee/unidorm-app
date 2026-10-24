@@ -56,6 +56,7 @@ import { usePermissionPriming } from "./webview/usePermissionPriming";
 import { useRegistryHandle } from "./webview/useRegistryHandle";
 import { useRevealOverlay } from "./webview/useRevealOverlay";
 import { useRootLifecycle } from "./webview/useRootLifecycle";
+import { useScreenRefocus } from "./webview/useScreenRefocus";
 import { useSpaNavigation } from "./webview/useSpaNavigation";
 import { useSystemBack } from "./webview/useSystemBack";
 import { useTokenSync } from "./webview/useTokenSync";
@@ -174,6 +175,7 @@ export default function WebViewContainer({ url, mode }: Props) {
     primeLocationPermission,
     primeCameraPermission,
   });
+  useScreenRefocus(bridge, webBridgeReadyRef);
   const onShouldStartLoadWithRequest = useLoadRequestGuard(devLoadUrlRef);
   const backGestureGuard = useBackGestureGuard(gestureBand);
 
