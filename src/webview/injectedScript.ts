@@ -275,7 +275,8 @@ export const INJECTED_SCRIPT = `
       } catch (e) {}
     };
     window.__unidormRequestCameraPermission = notifyCameraRequested;
-    // Legacy name, still called by web builds from before the rename.
+    // Legacy name the web called before the rename. Drop it once the web that
+    // calls __unidormRequestCameraPermission is deployed.
     window.__intipRequestCameraPermission = notifyCameraRequested;
     document.addEventListener('click', function (e) {
       var target = e.target;

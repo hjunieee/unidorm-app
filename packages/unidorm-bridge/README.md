@@ -10,30 +10,14 @@
   `channel.send(event, value)` / `channel.on(event, handler)`만 다룬다.
 - **양방향 대칭** — Web→Native, Native→Web 모두 같은 `{ event, value, v, id }` 봉투를 사용.
 
-## 설치 (GitHub Packages)
+## 소비 방식
 
-> **NOTE**: 아래 GitHub Packages 설치 안내는 더 이상 실제 소비 방식이 아니다.
-> `unidorm-app`과 `UNIDorm-web` 둘 다 이 레포를 `packages/unidorm-bridge`
-> git submodule로 vendoring해 **소스에서 직접 컴파일**한다(상대 경로 import,
-> npm 패키지 아님). 계약을 바꿀 때는 npm publish/버전업 없이, 이 레포에서
-> commit+push 한 뒤 두 소비 레포에서 `git submodule update --remote
-> packages/unidorm-bridge` 로 SHA pin만 올린다. 아래 절차는 과거 배포 방식의
-> 기록으로 남겨둔다.
+npm 패키지가 아니다. 원본은 `unidorm-app`의 `packages/unidorm-bridge`이고, 앱은 이 소스를
+상대 경로로 import 해 직접 컴파일한다. `UNIDorm-web`은 같은 경로에 `messages.ts`,
+`channel.ts`, `adapters/web.ts` 복사본을 두고 `@unidorm/bridge` 별칭으로 import 한다.
 
-소비 레포의 루트에 `.npmrc` 추가:
-
-```
-@inu-appcenter:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-그 다음:
-
-```sh
-npm install @unidorm/bridge
-```
-
-> `GITHUB_TOKEN`은 `read:packages` 권한이 있는 PAT. CI는 `secrets.GITHUB_TOKEN` 사용.
+계약을 바꿀 때는 여기서 고친 뒤 위 세 파일을 웹으로 복사하고, 웹 쪽 README의 기준 커밋을
+갱신한다.
 
 ## 사용
 
@@ -63,10 +47,8 @@ channel.send("receiveFcmToken", token);
 // <WebView ref={webViewRef} onMessage={onMessage} />
 ```
 
-> `/native` 엔트리는 `react-native-webview`(>=13)를 타입으로만 사용한다. 의도적으로
-> `peerDependencies`에 넣지 않았는데, GitHub Packages 레지스트리가 `peerDependenciesMeta`
-> (optional 플래그)를 메타데이터에서 누락시켜 웹 소비자 설치 시 react-native까지
-> 끌려오기 때문. 네이티브 앱은 `react-native-webview`를 직접 dependency로 설치할 것.
+> `/native` 엔트리는 `react-native-webview`(>=13)를 타입으로만 사용한다. 네이티브 앱은
+> `react-native-webview`를 직접 dependency로 둔다.
 
 ## 공유 시트 / 기능 광고
 
@@ -99,7 +81,7 @@ channel.send("receiveFcmToken", token);
 ## 새 메시지 추가
 
 1. `src/messages.ts`의 `WebToNative` 또는 `NativeToWeb` union에 `def("event", payloadSchema)` 추가.
-2. 버전 올려 publish → 양쪽 레포에서 업데이트.
+2. 웹이 쓰는 파일이면 `UNIDorm-web`의 복사본에도 그대로 반영한다(위 "소비 방식" 참고).
 
 타입과 검증이 자동으로 따라오므로 양쪽이 동기화된다.
 
@@ -110,12 +92,4 @@ npm install --legacy-peer-deps   # react-native-webview가 RN peer를 끌어옴
 npm run typecheck
 npm test
 npm run build
-```
-
-## 배포
-
-`vX.Y.Z` 태그 push → `.github/workflows/publish.yml`가 GitHub Packages로 publish.
-
-```sh
-npm version patch && git push --follow-tags
 ```

@@ -104,8 +104,9 @@ export function useBridgeHandlers({
 
       // AI Agent: Portal account & Academic info messages
       handleAgentBridgeMessage(raw, (response) => {
-        // `intipAgentResult` is the legacy event name; web builds from before
-        // the rename only listen for that one.
+        // `intipAgentResult` is the legacy event name the web listened for
+        // before the rename. Drop it once the web that also listens for
+        // `unidormAgentResult` is deployed.
         const detail = JSON.stringify(response);
         const script = `
           window.dispatchEvent(new CustomEvent('unidormAgentResult', { detail: ${detail} }));
