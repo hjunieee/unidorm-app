@@ -17,206 +17,48 @@
  * Both modes share the full JS <-> Native bridge. The root additionally owns the
  * push-notification lifecycle, the native-stack navigator registration (for the
  * dev controller / `restoreSession`), and the launch cache-purge overlay.
+ *
+ * This component is the composition root: each concern lives in its own hook
+ * under `./webview/` and is wired together here.
  */
-import {
-  useFocusEffect,
-  useNavigationContainerRef,
-  useRouter,
-} from "expo-router";
-import { useShareIntentContext } from "expo-share-intent";
-import * as WebBrowser from "expo-web-browser";
+import { useFocusEffect } from "expo-router";
 import * as ScreenCapture from "expo-screen-capture";
-import notifee from "@notifee/react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
-  AppState,
-  BackHandler,
-  Linking,
   Platform,
   StyleSheet,
-  ToastAndroid,
   useColorScheme,
   View,
 } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { GestureDetector } from "react-native-gesture-handler";
 import { useKeyboardState } from "react-native-keyboard-controller";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
-import WebView, {
-  type WebViewMessageEvent,
-  type WebViewNavigation,
-} from "react-native-webview";
-import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
+import { SafeAreaView } from "react-native-safe-area-context";
+import WebView, { type WebViewNavigation } from "react-native-webview";
 
 // Shared bridge is vendored as a git submodule under packages/intip-bridge and
 // compiled from source (no npm package / registry). See AGENTS.md.
-import { nativeAlert } from "../../modules/intip-native-dialog";
-import {
-  canMuteWebViewHaptics,
-  muteWebViewHaptics,
-  unmuteWebViewHaptics,
-  useSystemGestureBand,
-} from "../../modules/intip-system-gestures";
 import { createNativeChannel } from "../../packages/intip-bridge/src/adapters/native";
-import { PROTOCOL_VERSION, type TokenInfoPayload } from "../../packages/intip-bridge/src/messages";
-import { refreshWithToken, type RefreshOutcome } from "../native/authTokens";
-import { clearCacheAndReload, clearWebViewCache } from "../native/cache";
 import { saveDownload } from "../native/downloads";
-import { handleAgentBridgeMessage } from "../agent/agentBridgeHandler";
-import { ensureCameraPermission, ensureLocationPermission } from "../native/permissions";
-import { clearTokenInfo, readTokenInfo, saveTokenInfo } from "../native/secureTokenStore";
-import { shareContent } from "../native/share";
-import { onFcmTokenRefresh } from "../push/fcmTokenSync";
-import {
-  getFcmTokenWithRetry,
-  getInitialNavIntent,
-  setupForegroundNotifications,
-  subscribeNotificationOpen,
-  type NavIntent,
-} from "../push/messaging";
-import { resolveGradeShareIntent } from "../share/gradeShareIntent";
 import { backgroundColorFor, INDICATOR_COLOR } from "../theme";
-import { resolveBackAction } from "../webview/backPolicy";
-import { parseTokenProbe, resolveWebToken, TOKEN_PROBE_SCRIPT } from "../webview/tokenProbe";
-import {
-  APP_UA_SUFFIX,
-  isMainTabPath,
-  NATIVE_FEATURES,
-  PORTAL_HOST,
-  ROOT_URL,
-  STRINGS,
-} from "../webview/constants";
-import {
-  buildBridgeShimScript,
-  buildEdgeGuardBandScript,
-  buildEdgeGuardDiagnosticsScript,
-  buildEdgeLongPressGuardScript,
-  buildReceiveFcmTokenScript,
-  buildSafeAreaInsetsScript,
-  INJECTED_SCRIPT,
-  isCameraPermissionRequest,
-  isGeoPermissionRequest,
-  LAUNCH_CLEANUP_SCRIPT,
-} from "../webview/injectedScript";
-import { openSubPageDepth } from "../webview/subPageStack";
-import {
-  relayWebConsoleMessage,
-  WEB_CONSOLE_SCRIPT,
-} from "../webview/webConsole";
-import {
-  nextWebViewSeq,
-  useWebViewRegistry,
-  type WebViewHandle,
-} from "../webview/WebViewContext";
+import { APP_UA_SUFFIX, isMainTabPath } from "../webview/constants";
+import { LAUNCH_CLEANUP_SCRIPT } from "../webview/injectedScript";
+import { nextWebViewSeq, useWebViewRegistry } from "../webview/WebViewContext";
 import SplashArt from "./SplashArt";
-
-/** Extensions we treat as downloads on Android (iOS uses onFileDownload). */
-const DOWNLOAD_EXTENSIONS = [
-  ".pdf",
-  ".hwp",
-  ".hwpx",
-  ".doc",
-  ".docx",
-  ".xls",
-  ".xlsx",
-  ".ppt",
-  ".pptx",
-  ".zip",
-  ".csv",
-  ".txt",
-  ".png",
-  ".jpg",
-  ".jpeg",
-];
-
-/** Hard cap on how long the launch overlay waits for the web cleanup signal. */
-const CLEANUP_OVERLAY_TIMEOUT_MS = 4000;
-
-/** Hard cap on how long a sub-page holds its reveal overlay waiting for load. */
-const REVEAL_OVERLAY_TIMEOUT_MS = 4000;
-
-/** Cross-fade used to reveal the WebView once its content is ready. */
-const OVERLAY_FADE_MS = 250;
-
-/**
- * Travel (dp) that commits a touch to being a swipe rather than a tap. Kept
- * well under gesture-handler's default pan slop (10dp) so a *slow* back swipe
- * still hands the touch to the guard early, before the WebView's long-press
- * timer can fire (issue #25).
- */
-const EDGE_GUARD_SLOP_DP = 4;
-
-/**
- * How long a back press waits for the page's `backResult` before the shell
- * decides on its own. The web answers from a message handler, so a healthy
- * page replies in tens of milliseconds; this budget only covers a page that is
- * mid-load or whose JS thread is blocked. Long enough not to pre-empt a busy
- * page, short enough that a dead one still feels like a button press.
- */
-const BACK_DELEGATION_TIMEOUT_MS = 350;
-
-/**
- * Camera/location permission priming happens at most once per app session —
- * module-scoped, not per `WebViewContainer` instance. `INJECTED_SCRIPT` posts
- * `loginSuccess` unconditionally on every page load whenever a token is
- * already in localStorage (not just on a fresh login), so every freshly
- * pushed sub-page's own `loginSuccess` handler would otherwise re-prime on
- * its first load — surfacing as a permission dialog popping up out of
- * nowhere when entering e.g. the timetable edit page.
- * Location permission priming happens at most once per app session —
- * module-scoped, not per `WebViewContainer` instance — and is triggered
- * lazily by `GEO_REQUEST_MARKER` (the first time *any* mounted page actually
- * calls `navigator.geolocation`), not by `loginSuccess`. `INJECTED_SCRIPT`
- * posts `loginSuccess` unconditionally on every page load whenever a token is
- * already in localStorage (not just on a fresh login), so tying priming to it
- * used to re-prime on every freshly pushed sub-page's first load — surfacing
- * as a permission dialog popping up out of nowhere on pages that never touch
- * location (e.g. the timetable edit page).
- *
- * Camera: Android's react-native-webview drops the camera intent if CAMERA
- * permission is not yet granted at runtime. Lazily primed via
- * `CAMERA_REQUEST_MARKER` or on entering media-upload pages (/chat, /complain).
- */
-let locationPermissionPrimed = false;
-let cameraPermissionPrimed = false;
-
-/** Bridge shim is platform-specific (see injectedScript.ts). */
-const BRIDGE_SHIM_SCRIPT = buildBridgeShimScript(
-  Platform.OS === "ios" ? "ios" : "android",
-);
-
-/**
- * `NATIVE_FEATURES` again, but readable before the page's own code runs. The
- * web needs to know whether to hand token refresh to native on its very first
- * request, long before `bridgeCapabilities` could arrive.
- */
-const NATIVE_FEATURES_SCRIPT =
-  "window.__unidormNativeFeatures=" + JSON.stringify(NATIVE_FEATURES) + ";";
-
-/** Dev builds and dev variant also relay the web's console.* to the Metro log (webConsole.ts). */
-const isDevHost = __DEV__ || ROOT_URL.includes("pages.dev");
-const BEFORE_CONTENT_SCRIPT = isDevHost
-  ? NATIVE_FEATURES_SCRIPT + BRIDGE_SHIM_SCRIPT + WEB_CONSOLE_SCRIPT
-  : NATIVE_FEATURES_SCRIPT + BRIDGE_SHIM_SCRIPT;
-
-function toTokenRefreshResult(outcome: RefreshOutcome) {
-  if (outcome.status !== "ok") return { status: outcome.status };
-  return {
-    status: "ok" as const,
-    accessToken: outcome.tokenInfo.accessToken,
-    refreshToken: outcome.tokenInfo.refreshToken,
-    role: outcome.role,
-  };
-}
-
-function looksLikeDownload(url: string): boolean {
-  const path = url.split("?")[0].toLowerCase();
-  return DOWNLOAD_EXTENSIONS.some((ext) => path.endsWith(ext));
-}
+import { useBackGestureGuard } from "./webview/useBackGestureGuard";
+import { useBridgeHandlers } from "./webview/useBridgeHandlers";
+import { useFcmToken } from "./webview/useFcmToken";
+import { isDevHost, useInjectedScripts } from "./webview/useInjectedScripts";
+import { useLoadRequestGuard } from "./webview/useLoadRequestGuard";
+import { useNavIntentRouting } from "./webview/useNavIntentRouting";
+import { usePermissionPriming } from "./webview/usePermissionPriming";
+import { useRegistryHandle } from "./webview/useRegistryHandle";
+import { useRevealOverlay } from "./webview/useRevealOverlay";
+import { useRootLifecycle } from "./webview/useRootLifecycle";
+import { useSpaNavigation } from "./webview/useSpaNavigation";
+import { useSystemBack } from "./webview/useSystemBack";
+import { useTokenSync } from "./webview/useTokenSync";
 
 type Props = {
   /** Absolute URL this container loads. */
@@ -228,7 +70,8 @@ type Props = {
 export default function WebViewContainer({ url, mode }: Props) {
   const webViewRef = useRef<WebView>(null);
   // PlatformChannel over the single react-native-webview channel. `onMessage`
-  // is wired to the WebView prop; Web->Native handlers are registered below.
+  // is wired to the WebView prop; Web->Native handlers are registered in
+  // `useBridgeHandlers`.
   //
   // The cast below papers over a duplicate-install quirk, not a real type
   // mismatch: the bridge submodule (packages/intip-bridge) has its own
@@ -245,145 +88,9 @@ export default function WebViewContainer({ url, mode }: Props) {
     [nativeChannelRef],
   );
 
-  // Prime location (campus map) permission lazily — the first time any
-  // mounted page actually calls `navigator.geolocation` (see
-  // `GEO_REQUEST_MARKER`), not eagerly on login. At most once per app
-  // session (see `locationPermissionPrimed` above). Camera needs no
-  // equivalent: both WebView engines request it from the OS on demand.
-  // Reconcile the native token with the web's, then refresh the schedule
-  // widgets if anything changed — they are the ones that need a session. See
-  // `webview/tokenProbe.ts` for why this exists at all (a web session restored
-  // from localStorage never sends `syncTokenInfo`) and for the keep/adopt/clear
-  // rules.
-  const adoptWebToken = useCallback(async (webToken: TokenInfoPayload | null) => {
-    const action = resolveWebToken(webToken, await readTokenInfo());
-    if (action === "keep") return;
-    if (action === "adopt" && webToken) {
-      await saveTokenInfo(webToken);
-    } else {
-      await clearTokenInfo();
-    }
-  }, []);
-
-  const primeLocationPermission = useCallback(() => {
-    if (locationPermissionPrimed) return;
-    locationPermissionPrimed = true;
-    void ensureLocationPermission();
-  }, []);
-
-  const primeCameraPermission = useCallback(() => {
-    if (cameraPermissionPrimed || Platform.OS !== "android") return;
-    cameraPermissionPrimed = true;
-    void ensureCameraPermission();
-  }, []);
-
-  // Media-upload route priming: on Android, entering chat or complain pages
-  // primes camera permission lazily so file chooser intents never drop.
-  useEffect(() => {
-    if (Platform.OS === "android") {
-      const lower = url.toLowerCase();
-      if (lower.includes("/chat") || lower.includes("/complain")) {
-        primeCameraPermission();
-      }
-    }
-  }, [url, primeCameraPermission]);
-
-  // Dev builds also peel relayed web console messages off before the bridge
-  // channel parses the stream (they're not part of the intip-bridge
-  // contract); the geo-priming ping is intercepted the same way in every
-  // build.
-  const onWebViewMessage = useCallback(
-    (event: WebViewMessageEvent) => {
-      const raw = event.nativeEvent.data;
-      if (__DEV__) {
-        let tag = url;
-        try {
-          tag = new URL(url).pathname;
-        } catch {}
-        if (relayWebConsoleMessage(raw, tag)) return;
-      }
-      if (isGeoPermissionRequest(raw)) {
-        primeLocationPermission();
-        return;
-      }
-      if (isCameraPermissionRequest(raw)) {
-        primeCameraPermission();
-        return;
-      }
-      const probe = parseTokenProbe(raw);
-      if (probe) {
-        void adoptWebToken(probe.token);
-        return;
-      }
-
-      // React Native pools this event object: nativeEvent is nulled out as
-      // soon as the handler returns, and agent bridge handlers below are async.
-      const relayedEvent = { nativeEvent: { data: raw } } as WebViewMessageEvent;
-
-      // AI Agent: Portal account & Academic info messages
-      handleAgentBridgeMessage(raw, (response) => {
-        const script = `
-          window.dispatchEvent(new CustomEvent('intipAgentResult', {
-            detail: ${JSON.stringify(response)}
-          }));
-          true;
-        `;
-        webViewRef.current?.injectJavaScript(script);
-      }).then((handledAgent) => {
-        if (!handledAgent) {
-          bridge.onMessage(relayedEvent);
-        }
-      });
-    },
-    [bridge, url, primeLocationPermission, primeCameraPermission, adoptWebToken],
-  );
-  const router = useRouter();
-  // Read-only access to the live navigation state (push-tap dedupe below).
-  // Stable across renders — expo-router hands out the store's single ref.
-  const navigationRef = useNavigationContainerRef();
   const scheme = useColorScheme();
   const backgroundColor = backgroundColorFor(scheme);
   const isRoot = mode === "root";
-  // Root reserves no inset natively (the web owns all four via
-  // env(safe-area-inset-*) + the injected --native-safe-area-inset-* below).
-  // Sub-pages still let native reserve left/right (notch/landscape), but never
-  // the top — every pushed page now pads its own header itself, the same way
-  // the migrated pages used to (see the insets injection below).
-  const insets = useSafeAreaInsets();
-  // Combined with the static bridge-shim script so the very first paint
-  // already has the native insets available as CSS vars — before content
-  // loads, ahead of the page's own layout. Re-injected live below whenever
-  // insets change (rotation, foldable), since this only re-runs on a fresh
-  // navigation, not a live prop change. `insets` is reference-stable across
-  // no-op re-renders (react-native-safe-area-context only swaps the object
-  // when a value actually changes), so depending on it directly is safe.
-  const beforeContentScript = useMemo(
-    () => BEFORE_CONTENT_SCRIPT + buildSafeAreaInsetsScript(insets),
-    [insets],
-  );
-
-  // 문서 끝 스크립트와 시스템 백 제스처 영역 가드를 구성한다.
-  const gestureBand = useSystemGestureBand();
-
-  // 가드는 안드로이드 전용이다. WKWebView는 롱프레스 햅틱 문제가 없고,
-  // 가장자리 touchstart를 preventDefault하면 인터랙티브 백 스와이프가 씹힌다.
-  const edgeGuardEnabled = Platform.OS === "android";
-
-  // 페이지를 새로 불러올 때마다 다시 실행되므로 현재 폭을 담아야 한다. 이미
-  // 떠 있는 페이지에는 아래 effect가 변경된 폭을 주입한다.
-  const documentEndScript = useMemo(
-    () =>
-      INJECTED_SCRIPT +
-      (edgeGuardEnabled
-        ? buildEdgeLongPressGuardScript(
-            gestureBand.left,
-            gestureBand.right,
-            !canMuteWebViewHaptics,
-          ) +
-          (__DEV__ ? buildEdgeGuardDiagnosticsScript() : "")
-        : ""),
-    [edgeGuardEnabled, gestureBand.left, gestureBand.right],
-  );
 
   // Connect this container to the WebView orchestrator (shared dev controller).
   const registry = useWebViewRegistry();
@@ -392,125 +99,83 @@ export default function WebViewContainer({ url, mode }: Props) {
   const [currentPath, setCurrentPath] = useState<string>("/");
   const [canGoBack, setCanGoBack] = useState(false);
   const canGoBackRef = useRef(false);
-  const lastBackPressRef = useRef(0);
-  const pendingNavRef = useRef<string | null>(null);
   // `onLoadEnd` does not guarantee the web app has registered its NativeToWeb
   // handlers. Wait for its explicit `bridgeReady` acknowledgement instead.
   const webBridgeReadyRef = useRef(false);
-  const pendingNotificationOpenedRef = useRef<{
-    fcmMessageId: number;
-    path?: string;
-    notificationType?: string;
-    campaignId?: string;
-    sentAt?: string;
-  } | null>(null);
   const cleanupStartedRef = useRef(false);
   // Dev controller "load full URL": the URL a developer asked to load in place.
   // Lets `onShouldStartLoadWithRequest` allow that one navigation even off-portal
   // (which the security guard would otherwise divert to the system browser).
   const devLoadUrlRef = useRef<string | null>(null);
 
-  // Reveal overlay: a flat themed screen held over the WebView until its
-  // content is ready, then cross-faded out. Without it a pushed sub-page slides
-  // in as a bare background-coloured card and the page *pops* in whenever the
-  // cold load happens to finish — the visible "black (dark) / white (light)
-  // flash" during the native-stack transition. Root reuses the same overlay to
-  // additionally mask the launch service-worker/cache purge.
-  //  - root: lifted by `onLaunchWebCleanupFinished` (or CLEANUP_OVERLAY_TIMEOUT_MS)
-  //  - sub:  lifted by `onLoadEnd` (or REVEAL_OVERLAY_TIMEOUT_MS)
-  const [overlayVisible, setOverlayVisible] = useState(true);
-  const [overlayOpacity] = useState(() => new Animated.Value(1));
-  const overlayDismissedRef = useRef(false);
+  const { primeLocationPermission, primeCameraPermission } =
+    usePermissionPriming(url);
+  const { beforeContentScript, documentEndScript, gestureBand } =
+    useInjectedScripts(webViewRef);
+  const { overlayVisible, overlayOpacity, dismissOverlay } =
+    useRevealOverlay(isRoot);
 
   // --- Native -> Web helpers -------------------------------------------------
-  const postFcmToken = useCallback(async () => {
-    const token = await getFcmTokenWithRetry();
-    if (token) {
-      // 1. 구버전 네이티브(iOS/Android) 호환 웹뷰 스크립트 직접 주입
-      const script = buildReceiveFcmTokenScript(token);
-      webViewRef.current?.injectJavaScript(script);
-      // 2. 신규 브릿지 채널 발송 및 세션 상태 동기화
-      bridge.channel.send("receiveFcmToken", token);
-      registry.mergeSession({ fcmToken: token });
-    }
-  }, [bridge, registry]);
+  const { navigateSpa, goHome } = useSpaNavigation(bridge, webViewRef);
+  const { postFcmToken, deliverFcmToken } = useFcmToken(bridge, webViewRef);
+  const { probeWebToken, handleTokenProbeMessage, sendTokenInfo } =
+    useTokenSync(bridge, webViewRef);
 
-  const navigateSpa = useCallback(
-    (path: string) => {
-      bridge.channel.send("navigate", path);
-      // 브릿지 채널 수신 타이밍 문제나 렌더 지연을 방지하기 위해 웹뷰에 직접 pushState 및 popstate를 함께 발송
-      const script = `
-        (function() {
-          try {
-            if (typeof window.navigateToPath === 'function') {
-              window.navigateToPath(${JSON.stringify(path)});
-            } else if (window.location.pathname !== ${JSON.stringify(path)}) {
-              window.history.pushState({}, '', ${JSON.stringify(path)});
-              window.dispatchEvent(new PopStateEvent('popstate'));
-            }
-          } catch (e) {}
-        })();
-        true;
-      `;
-      webViewRef.current?.injectJavaScript(script);
-    },
-    [bridge],
-  );
-
-  const flushPendingNotificationOpened = useCallback(() => {
-    if (!webBridgeReadyRef.current || !pendingNotificationOpenedRef.current)
-      return;
-    bridge.channel.send(
-      "notificationOpened",
-      pendingNotificationOpenedRef.current,
-    );
-    pendingNotificationOpenedRef.current = null;
-  }, [bridge]);
-
-  const notifyNotificationOpened = useCallback(
-    (intent: NavIntent) => {
-      if (intent.fcmMessageId === undefined) return;
-      pendingNotificationOpenedRef.current = {
-        fcmMessageId: intent.fcmMessageId,
-        path: intent.kind === "external" ? intent.url : intent.path,
-        notificationType: intent.notificationType,
-        campaignId: intent.campaignId,
-        sentAt: intent.sentAt,
-      };
-      flushPendingNotificationOpened();
-    },
-    [flushPendingNotificationOpened],
-  );
-
-  // Idempotent: the load signal and the safety timeout race, and whichever
-  // lands first owns the fade.
-  const dismissOverlay = useCallback(() => {
-    if (overlayDismissedRef.current) return;
-    overlayDismissedRef.current = true;
-    Animated.timing(overlayOpacity, {
-      toValue: 0,
-      duration: OVERLAY_FADE_MS,
-      useNativeDriver: true,
-    }).start(() => setOverlayVisible(false));
-  }, [overlayOpacity]);
-
-  // Collapse the native sub-stack back to root, then drive root's SPA to a
-  // main-tab path. Root is always mounted (the index screen), so `driveRoot`
-  // works whether or not any sub-pages are currently on top of it.
-  const goHome = useCallback(
-    (path: string) => {
-      void ScreenCapture.allowScreenCaptureAsync().catch(() => {});
-      if (router.canGoBack()) {
-        try {
-          router.dismissAll();
-        } catch {
-          while (router.canGoBack()) router.back();
-        }
-      }
-      registry.driveRoot(path);
-    },
-    [registry, router],
-  );
+  const { handleNavIntent, onWebBridgeReady } = useNavIntentRouting({
+    isRoot,
+    bridge,
+    webBridgeReadyRef,
+    navigateSpa,
+    goHome,
+  });
+  useRootLifecycle({
+    isRoot,
+    webViewRef,
+    handleNavIntent,
+    postFcmToken,
+    deliverFcmToken,
+    dismissOverlay,
+  });
+  useRegistryHandle({
+    id,
+    mode,
+    url,
+    bridge,
+    webViewRef,
+    devLoadUrlRef,
+    navigateSpa,
+    postFcmToken,
+    sendTokenInfo,
+  });
+  useSystemBack({
+    isRoot,
+    bridge,
+    webViewRef,
+    canGoBack,
+    canGoBackRef,
+    currentPath,
+    setCurrentPath,
+    navigateSpa,
+  });
+  const onWebViewMessage = useBridgeHandlers({
+    id,
+    isRoot,
+    url,
+    bridge,
+    webViewRef,
+    webBridgeReadyRef,
+    setCurrentPath,
+    dismissOverlay,
+    goHome,
+    postFcmToken,
+    probeWebToken,
+    handleTokenProbeMessage,
+    onWebBridgeReady,
+    primeLocationPermission,
+    primeCameraPermission,
+  });
+  const onShouldStartLoadWithRequest = useLoadRequestGuard(devLoadUrlRef);
+  const backGestureGuard = useBackGestureGuard(gestureBand);
 
   // 컨테이너 언마운트 시 잔류할 수 있는 화면 캡처 방지 플래그(FLAG_SECURE) 안전 해제
   useEffect(() => {
@@ -528,540 +193,6 @@ export default function WebViewContainer({ url, mode }: Props) {
     }, [isRoot])
   );
 
-  // 1. push 인텐트를 임시 저장할 Ref 추가
-  const pendingPushRef = useRef<NavIntent | null>(null);
-
-  // Nav-intent routing (root only): push-notification tap / cold-start, and
-  // (below) an incoming OS Share Sheet grade-import. Both resolve to the same
-  // `NavIntent` union, so they share this one dispatcher.
-  const handleNavIntent = useCallback(
-    (intent: NavIntent) => {
-      notifyNotificationOpened(intent);
-      if (intent.kind === "external") {
-        WebBrowser.openBrowserAsync(intent.url).catch(() => {});
-      } else if (intent.kind === "push") {
-        const isReady =
-          navigationRef.isReady() && !!navigationRef.getCurrentRoute();
-        if (!isReady) {
-          pendingPushRef.current = intent; // 네비게이션이 준비될 때까지 대기
-          return;
-        }
-        // Land ON TOP of whatever is open (don't collapse the user's stack) —
-        // but never stack a second copy of a page that is already open. Chat
-        // notifications for one room arrive as separate notifications with
-        // separate ids, so `pendingIntent`'s id dedupe doesn't cover this:
-        // without the stack lookup, tapping n of them opened n identical chat
-        // screens the user then had to back out of one by one.
-        const depth = navigationRef.isReady()
-          ? openSubPageDepth(navigationRef.getRootState(), intent.url)
-          : null;
-        if (depth === null) {
-          router.push({
-            pathname: "/webview",
-            params: { url: intent.url, path: intent.path },
-          });
-        } else if (depth > 0) {
-          // Already open underneath: come back to it instead of duplicating it.
-          router.dismiss(depth);
-        }
-        // depth === 0: it is the top-most screen already — nothing to do.
-      } else {
-        // spa: a main-tab destination — collapse to root and drive it there.
-        // Also queue for the cold-start case where root's SPA hasn't loaded
-        // yet; the queued path is flushed in onLoadEnd.
-        goHome(intent.path);
-        pendingNavRef.current = intent.path;
-      }
-    },
-    [goHome, navigationRef, notifyNotificationOpened, router],
-  );
-
-  // OS Share Sheet grade-import (Android only for now — app.json's
-  // `disableIOS` skips building the iOS share extension, so `hasShareIntent`
-  // never turns true there). The hook itself resolves both a cold-start
-  // launch (app opened via the share) and a live share while already
-  // running, so — unlike push notifications — there's no separate
-  // `getInitial…` to poll here.
-  const { hasShareIntent, shareIntent, resetShareIntent } =
-    useShareIntentContext();
-  useEffect(() => {
-    if (!isRoot || !hasShareIntent) return;
-    const intent = resolveGradeShareIntent(shareIntent);
-    // Consume it either way — a share with nothing usable (e.g. blank text)
-    // shouldn't be re-offered on the next render.
-    resetShareIntent();
-    if (intent) handleNavIntent(intent);
-  }, [handleNavIntent, hasShareIntent, isRoot, resetShareIntent, shareIntent]);
-
-  // --- Lifecycle: cache + notifications (root only) --------------------------
-  useEffect(() => {
-    // Sub-pages share the process-wide WebView cache; only the launch screen
-    // clears it (login/cookies preserved) and owns the notification lifecycle.
-    if (!isRoot) return;
-    clearWebViewCache(webViewRef);
-
-    const unsubForeground = setupForegroundNotifications();
-    const unsubOpen = subscribeNotificationOpen(handleNavIntent);
-    const unsubTokenRefresh = onFcmTokenRefresh((newToken) => {
-      const script = buildReceiveFcmTokenScript(newToken);
-      webViewRef.current?.injectJavaScript(script);
-      bridge.channel.send("receiveFcmToken", newToken);
-      registry.mergeSession({ fcmToken: newToken });
-    });
-    // Cold-start deep link: same branching as a live tap.
-    void getInitialNavIntent().then((intent) => {
-      if (intent) handleNavIntent(intent);
-    });
-    // Re-post the FCM token whenever the app returns to the foreground.
-    const appStateSub = AppState.addEventListener("change", (state) => {
-      if (state === "active") void postFcmToken();
-    });
-    // Safety net: never leave the overlay stuck if the web never signals back.
-    const timeout = setTimeout(dismissOverlay, CLEANUP_OVERLAY_TIMEOUT_MS);
-    return () => {
-      unsubForeground();
-      unsubOpen();
-      unsubTokenRefresh();
-      appStateSub.remove();
-      clearTimeout(timeout);
-    };
-  }, [dismissOverlay, handleNavIntent, isRoot, postFcmToken]);
-
-  // 3. 네비게이션 준비 상태를 관찰하는 useEffect
-  useEffect(() => {
-    if (!isRoot) return;
-
-    const checkPendingPush = () => {
-      const isReady =
-        navigationRef.isReady() && !!navigationRef.getCurrentRoute();
-      if (pendingPushRef.current && isReady) {
-        const intent = pendingPushRef.current;
-        pendingPushRef.current = null;
-        handleNavIntent(intent);
-      }
-    };
-
-    // 마운트 직후 이미 준비 완료된 상태일 수 있으므로 즉시 검사
-    checkPendingPush();
-
-    // 네비게이션 상태 변화 감지 리스너 등록
-    const unsub = navigationRef.addListener("state", checkPendingPush);
-    return unsub;
-  }, [isRoot, navigationRef, handleNavIntent]);
-
-  // Sub-pages lift the reveal overlay from `onLoadEnd`; this is the safety net
-  // for a load that errors out or never ends (root has its own above).
-  useEffect(() => {
-    if (isRoot) return;
-    const timeout = setTimeout(dismissOverlay, REVEAL_OVERLAY_TIMEOUT_MS);
-    return () => clearTimeout(timeout);
-  }, [dismissOverlay, isRoot]);
-
-  // Same shape as the insets push below: the guard bakes in the band it was
-  // injected with, so a later change (navigation mode, sensitivity slider) has
-  // to be pushed. Skipping the first run avoids re-sending what the injected
-  // script already carries.
-  const skipFirstBandPushRef = useRef(true);
-  useEffect(() => {
-    if (skipFirstBandPushRef.current) {
-      skipFirstBandPushRef.current = false;
-      return;
-    }
-    if (!edgeGuardEnabled) return;
-    webViewRef.current?.injectJavaScript(
-      buildEdgeGuardBandScript(gestureBand.left, gestureBand.right),
-    );
-  }, [edgeGuardEnabled, gestureBand.left, gestureBand.right]);
-
-  // Keep the page's safe-area CSS vars current across an insets change after
-  // the initial load (rotation, foldable fold/unfold). The initial value is
-  // covered by `beforeContentScript` above, so skip the redundant first run.
-  const skipFirstInsetsPushRef = useRef(true);
-  useEffect(() => {
-    if (skipFirstInsetsPushRef.current) {
-      skipFirstInsetsPushRef.current = false;
-      return;
-    }
-    webViewRef.current?.injectJavaScript(buildSafeAreaInsetsScript(insets));
-  }, [insets]);
-
-  // --- Orchestrator: register this container + expose its imperative handle --
-  useEffect(() => {
-    const handle: WebViewHandle = {
-      reload: () => webViewRef.current?.reload(),
-      reloadClearCache: () => clearCacheAndReload(webViewRef),
-      goBackSpa: () => webViewRef.current?.goBack(),
-      navigateSpa: (path) => navigateSpa(path),
-      // Dev-only: navigate this WebView to a full URL (not an SPA hop). Records
-      // the target so the off-portal guard lets it through this once.
-      loadUrl: (target) => {
-        if (!__DEV__) return;
-        devLoadUrlRef.current = target;
-        webViewRef.current?.injectJavaScript(
-          `window.location.href = ${JSON.stringify(target)}; true;`,
-        );
-      },
-      refreshFcmToken: () => void postFcmToken(),
-      sendTokenInfo: (tokenInfo) => {
-        bridge.channel.send("tokenInfoUpdated", tokenInfo);
-        // 안전망: 웹 측 브릿지 수신 지연이나 구버전 웹에서도 localStorage 및 이벤트가 동기화되도록 직접 주입
-        const roleStr = (tokenInfo as any).role || "";
-        const tokenScript = `
-          (function() {
-            try {
-              if (window.localStorage) {
-                if (${JSON.stringify(tokenInfo.accessToken)}) {
-                  localStorage.setItem('accessToken', ${JSON.stringify(tokenInfo.accessToken)});
-                  localStorage.setItem('refreshToken', ${JSON.stringify(tokenInfo.refreshToken)});
-                  localStorage.setItem('role', ${JSON.stringify(roleStr)});
-                } else {
-                  localStorage.removeItem('accessToken');
-                  localStorage.removeItem('refreshToken');
-                  localStorage.removeItem('role');
-                }
-              }
-              window.dispatchEvent(new CustomEvent('tokenInfoUpdated', { detail: ${JSON.stringify(tokenInfo)} }));
-            } catch (e) {}
-          })();
-          true;
-        `;
-        webViewRef.current?.injectJavaScript(tokenScript);
-      },
-      sendBroadcastSync: (message) =>
-        bridge.channel.send("broadcastSyncMessage", message),
-    };
-    registry.registerWebView({ id, mode, url, path: "/" }, handle);
-    return () => registry.unregisterWebView(id);
-  }, [id, mode, url, registry, navigateSpa, postFcmToken, bridge]);
-
-  // The root owns the expo-router stack, so it registers native-stack navigation
-  // (push/pop/popToRoot) the controller uses to restore a saved session.
-  useEffect(() => {
-    if (!isRoot) return;
-    registry.registerNavigator({
-      push: (target, path) =>
-        router.push({ pathname: "/webview", params: { url: target, path } }),
-      pop: () => {
-        if (router.canGoBack()) router.back();
-      },
-      popToRoot: () => {
-        try {
-          if (router.canGoBack()) router.dismissAll();
-        } catch {
-          while (router.canGoBack()) router.back();
-        }
-      },
-    });
-    return () => registry.registerNavigator(null);
-  }, [isRoot, registry, router]);
-
-  // --- Android system back (only while this screen is focused) ---------------
-  //
-  // The shell never decides a back press on its own. Android's system back is
-  // "the app's back", so it asks the page first (`checkBack`) and acts only on
-  // the answer — the page is the only side that knows about its own
-  // `pushState`-backed modals (image viewer, filter overlay, search overlay),
-  // which is exactly what used to get skipped: a sub-page popped the whole
-  // native screen while the web only wanted its modal closed (issue #15).
-  //
-  // Returns `true` (handled) / `false` (nothing left to undo) / `null` when the
-  // page never answered — mid-load or a blocked JS thread.
-  const askWebToHandleBack = useCallback(async (): Promise<boolean | null> => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const reply = await Promise.race([
-        // A late rejection (the channel's own 10s request timeout) is absorbed
-        // by the already-settled race — no unhandled rejection.
-        bridge.channel.request("checkBack"),
-        new Promise<null>((resolve) => {
-          timer = setTimeout(() => resolve(null), BACK_DELEGATION_TIMEOUT_MS);
-        }),
-      ]);
-      if (!reply) return null;
-      // An old web build without the `checkBack` handler can't reply at all, so
-      // anything other than `backResult` is treated as "no answer".
-      return reply.event === "backResult" ? reply.value.handled : null;
-    } catch {
-      return null;
-    } finally {
-      clearTimeout(timer);
-    }
-  }, [bridge]);
-
-  // Guards the async gap: hammering the back button must not queue up one
-  // screen pop per press.
-  const backInFlightRef = useRef(false);
-
-  const handleSystemBack = useCallback(async () => {
-    if (backInFlightRef.current) return;
-    backInFlightRef.current = true;
-    try {
-      const action = resolveBackAction({
-        handled: await askWebToHandleBack(),
-        isRoot,
-        webViewCanGoBack: canGoBackRef.current,
-        currentPath,
-      });
-      switch (action) {
-        case "none":
-          return;
-        case "webViewGoBack":
-          webViewRef.current?.goBack();
-          return;
-        case "popScreen":
-          if (router.canGoBack()) router.back();
-          return;
-        case "goToHome": {
-          setCurrentPath("/home");
-          navigateSpa("/home");
-          return;
-        }
-        case "exitPrompt": {
-          const now = Date.now();
-          if (now - lastBackPressRef.current < 2000) {
-            BackHandler.exitApp();
-            return;
-          }
-          lastBackPressRef.current = now;
-          ToastAndroid.show(
-            "뒤로 가기를 한 번 더 누르면 종료됩니다.",
-            ToastAndroid.SHORT,
-          );
-        }
-      }
-    } finally {
-      backInFlightRef.current = false;
-    }
-  }, [askWebToHandleBack, currentPath, isRoot, navigateSpa, router]);
-
-
-  useFocusEffect(
-    useCallback(() => {
-      if (Platform.OS !== "android") return;
-
-      // 루트 웹뷰: 메인 탭 이동 및 /home 2초 내 재입력 종료 토스트 처리를 위해 항상 BackHandler 등록
-      if (isRoot) {
-        const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-          void handleSystemBack();
-          return true;
-        });
-        return () => sub.remove();
-      }
-
-      // 서브 웹뷰:
-      // 웹뷰 내부에 back stack이 남아있는 경우(canGoBack === true):
-      // 시스템 예측 뒤로가기를 가로채(비활성화) 웹뷰 내부 back stack을 우선 소모
-      if (canGoBack) {
-        const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-          void handleSystemBack();
-          return true;
-        });
-        return () => sub.remove();
-      }
-
-      // 웹뷰 내부 back stack이 다 소모된 경우(canGoBack === false):
-      // BackHandler를 등록하지 않음 -> Android OS(One UI 8)의 시스템 예측 뒤로가기(Predictive Back)로 화면 pop 위임
-      return undefined;
-    }, [canGoBack, handleSystemBack, isRoot]),
-  );
-
-  // --- Bridge: Web -> Native -------------------------------------------------
-  useEffect(() => {
-    const { channel } = bridge;
-    const offs = [
-      channel.on("bridgeReady", () => {
-        webBridgeReadyRef.current = true;
-        // Ask the web for its stored token — see `adoptWebToken`. Root only:
-        // every WebView shares the same storage, so one probe per launch is
-        // enough, and pushed sub-pages would only repeat it.
-        if (isRoot) webViewRef.current?.injectJavaScript(TOKEN_PROBE_SCRIPT);
-        flushPendingNotificationOpened();
-        // Resolve any queued notification deep-link now the SPA is ready.
-        if (isRoot && pendingNavRef.current) {
-          navigateSpa(pendingNavRef.current);
-          pendingNavRef.current = null;
-        }
-        // Advertise what this shell supports. The web can't rely on a
-        // request() timeout to detect `share` support (the share sheet can
-        // stay open for minutes), so this is sent unprompted right after
-        // `bridgeReady` — an old shell that never sends this at all is the
-        // signal for "supports none of these".
-        channel.send("bridgeCapabilities", {
-          protocol: PROTOCOL_VERSION,
-          features: [...NATIVE_FEATURES],
-        });
-      }),
-      // Push a new native sub-page screen (spec §3.B/§4). The web only emits
-      // this for non-main-tab destinations.
-      channel.on("navigateTo", ({ path, url: target }) => {
-        router.push({ pathname: "/webview", params: { url: target, path } });
-      }),
-      // Pop the top-most screen (spec §3.C). No-op on the root.
-      channel.on("goBack", () => {
-        if (router.canGoBack()) router.back();
-      }),
-      // Return to a home-tab path — collapse the stack to root and drive root
-      // there, regardless of which page (root or a sub) sent it.
-      channel.on("goHome", ({ path }) => {
-        goHome(path);
-      }),
-      channel.on("loginSuccess", () => {
-        void postFcmToken();
-        registry.mergeSession({ loggedIn: true, loginAt: Date.now() });
-      }),
-      // Mirror the web's JWT into SecureStore so the shell can call
-      // authenticated backend endpoints on its own (background FCM token
-      // registration) without a live WebView. An empty accessToken is the
-      // web's logout signal — clear the native copy too.
-      channel.on("syncTokenInfo", (tokenInfo) => {
-        void (tokenInfo.accessToken
-          ? saveTokenInfo(tokenInfo)
-          : clearTokenInfo());
-        // 다른 활성 웹뷰(특히 백그라운드에 대기 중인 루트 웹뷰)로 변경된 토큰 정보 실시간 브로드캐스트
-        registry.broadcastTokenInfo(tokenInfo, id);
-      }),
-      // Multi-WebView state sync fallback/second path (see WebViewContext's
-      // `relayBroadcastSync` doc comment): relay to every other mounted WebView.
-      channel.on("relayBroadcastSync", (message) => {
-        registry.relayBroadcastSync(message, id);
-      }),
-      channel.on("routeChange", (path) => {
-        setCurrentPath(path || "/");
-        registry.updateWebView(id, { path: path || "/" });
-      }),
-      channel.on("requestAppUpdate", () => {
-        nativeAlert(STRINGS.appUpdate.title, STRINGS.appUpdate.message, [
-          { text: STRINGS.appUpdate.cancel, style: "cancel" },
-          {
-            text: STRINGS.appUpdate.confirm,
-            onPress: () => clearCacheAndReload(webViewRef),
-          },
-        ]);
-      }),
-      channel.on("openAppSettings", () => {
-        Linking.openSettings().catch(() => {});
-      }),
-      channel.on("requestPermissionSettings", () => {
-        Linking.openSettings().catch(() => {});
-      }),
-      channel.on("logWebDiagnostics", (diag) => {
-        console.log("[web-diagnostics]", diag);
-      }),
-      // Cleanup loop done: reveal the WebView (spec §5.B step 4).
-      channel.on("onLaunchWebCleanupFinished", () => {
-        dismissOverlay();
-      }),
-      channel.on("jsAlert", (message) => {
-        // Web `alert()` has no title, so this is message-only.
-        nativeAlert("", message, [{ text: STRINGS.common.confirm }]);
-      }),
-      // Web-initiated OS Share Sheet. `shareContent` never rejects, but guard
-      // `reply` too (it throws on outgoing schema validation) so a bug here
-      // can't escape into the injected-code exception blackhole (see
-      // channel.ts's `handleRaw` comment).
-      channel.on("share", (value, msg) => {
-        void shareContent(value)
-          .then((result) => channel.reply(msg, "shareResult", result))
-          .catch((error) => console.warn("[bridge] share reply failed", error));
-      }),
-      // Token refresh on the web's behalf: every WebView funnels through
-      // `refreshWithToken`, so two pages booting together cost one server
-      // call instead of the second one being refused for a rotated token.
-      // The other WebViews hear about the new pair via `tokenInfoUpdated`.
-      channel.on("requestTokenRefresh", ({ refreshToken }, msg) => {
-        void refreshWithToken(refreshToken)
-          .then((outcome) =>
-            channel.reply(msg, "tokenRefreshResult", toTokenRefreshResult(outcome)),
-          )
-          .catch((error) => console.warn("[bridge] token refresh reply failed", error));
-      }),
-      channel.on("onAppReady", () => {
-        webBridgeReadyRef.current = true;
-      }),
-      channel.on("enterDetailView", (payload) => {
-        const targetId = payload?.id;
-        const targetPath = payload?.path;
-        if (targetId) {
-          notifee.cancelNotification(targetId).catch(() => {});
-        }
-        if (targetPath || targetId) {
-          notifee.getDisplayedNotifications().then((notifs) => {
-            notifs.forEach((n) => {
-              const d = n.notification.data;
-              if (
-                (targetPath && d?.path === targetPath) ||
-                (targetId && (
-                  d?.targetId === targetId ||
-                  d?.chatRoomId === targetId ||
-                  d?.noticeId === targetId ||
-                  d?.complaintId === targetId ||
-                  d?.roommatePostId === targetId ||
-                  d?.id === targetId
-                ))
-              ) {
-                if (n.id) notifee.cancelNotification(n.id).catch(() => {});
-              }
-            });
-          }).catch(() => {});
-        }
-      }),
-    ];
-    return () => {
-      for (const off of offs) off();
-    };
-  }, [
-    bridge,
-    dismissOverlay,
-    flushPendingNotificationOpened,
-    goHome,
-    id,
-    postFcmToken,
-    registry,
-    router,
-  ]);
-
-  // --- External links + Android downloads ------------------------------------
-  const onShouldStartLoadWithRequest = useCallback(
-    (request: ShouldStartLoadRequest) => {
-      const { url: target } = request;
-      // Allow sub-frame / resource loads (iOS reports these too).
-      if (request.isTopFrame === false) return true;
-
-      // Dev controller "load full URL": let the exact URL a developer asked to
-      // load navigate in place, even if off-portal (the guard below would send it
-      // to the system browser). One-shot; cleared once consumed.
-      if (__DEV__ && devLoadUrlRef.current === target) {
-        devLoadUrlRef.current = null;
-        return true;
-      }
-
-      let host = "";
-      try {
-        host = new URL(target).host;
-      } catch {
-        // Non-standard scheme (mailto:, tel:, intent:, market:, blob:) -> hand off.
-        if (!/^https?:/i.test(target)) {
-          Linking.openURL(target).catch(() => {});
-          return false;
-        }
-      }
-
-      // Android downloads are not surfaced via onFileDownload — catch them here.
-      if (Platform.OS === "android" && looksLikeDownload(target)) {
-        void saveDownload(target);
-        return false;
-      }
-
-      // Any off-portal navigation opens in the system browser (spec §6.4).
-      if (host && host !== PORTAL_HOST) {
-        Linking.openURL(target).catch(() => {});
-        return false;
-      }
-      return true;
-    },
-    [],
-  );
-
   const onNavigationStateChange = useCallback(
     (nav: WebViewNavigation) => {
       canGoBackRef.current = nav.canGoBack;
@@ -1076,7 +207,6 @@ export default function WebViewContainer({ url, mode }: Props) {
     },
     [id, registry],
   );
-
 
   const onLoadEnd = useCallback(() => {
     // Push the FCM token into the web context after every page load (spec §5.A).
@@ -1094,7 +224,7 @@ export default function WebViewContainer({ url, mode }: Props) {
       // the content pop in on top of the slide-in transition.
       dismissOverlay();
     }
-  }, [dismissOverlay, isRoot, navigateSpa, postFcmToken]);
+  }, [dismissOverlay, isRoot, postFcmToken]);
 
   const onLoadStart = useCallback(() => {
     if (isRoot) webBridgeReadyRef.current = false;
@@ -1125,43 +255,6 @@ export default function WebViewContainer({ url, mode }: Props) {
   // Root sits on the main tabs -> no WebView-level swipe-back; sub-pages let the
   // native stack own the swipe so it pops the screen (spec §3.C.2 / §6.5).
   const webViewSwipeBack = isRoot && !isMainTabPath(currentPath);
-
-  // 시스템 백 제스처 영역의 터치를 네이티브 제스처로 먼저 처리한다.
-  const backGestureGuard = useMemo(() => {
-    const trace = <T extends { onStart: (cb: () => void) => T }>(
-      gesture: T & { runOnJS: (value: boolean) => T },
-      label: string,
-    ): T =>
-      __DEV__
-        ? gesture
-            .runOnJS(true)
-            .onStart(() => console.log(`[edge-diag] native ${label} activated`))
-        : gesture;
-
-    const guard = (edge: "left" | "right") => {
-      const width = edge === "left" ? gestureBand.left : gestureBand.right;
-      return trace(
-        Gesture.Pan()
-          .hitSlop(
-            edge === "left" ? { left: 0, width } : { right: 0, width },
-          )
-          .activeOffsetX(
-            edge === "left" ? EDGE_GUARD_SLOP_DP : -EDGE_GUARD_SLOP_DP,
-          )
-          .failOffsetY([-EDGE_GUARD_SLOP_DP, EDGE_GUARD_SLOP_DP])
-          // 영역에서 시작한 터치 동안 웹뷰 롱프레스 햅틱을 끈다. 시스템이
-          // 백 제스처를 가져가면 이 가드는 바로 취소되므로, 되돌리는 시점은
-          // unmuteWebViewHaptics가 최소 시간 뒤로 미룬다.
-          .runOnJS(true)
-          .onBegin(muteWebViewHaptics)
-          .onFinalize(unmuteWebViewHaptics)
-          // iOS와 버튼 내비게이션에서는 가드를 사용하지 않는다.
-          .enabled(Platform.OS === "android" && width > 0),
-        `pan/${edge}`,
-      );
-    };
-    return Gesture.Race(guard("left"), guard("right"));
-  }, [gestureBand.left, gestureBand.right]);
 
   const webView = (
     <WebView
