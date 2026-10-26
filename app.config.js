@@ -25,7 +25,6 @@ module.exports = () => ({
     android: {
       ...expo.android,
       ...(isDevVariant && {
-        package: "com.hjunieee.inudormitory.dev",
         googleServicesFile: "./google-services-dev.json",
         adaptiveIcon: {
           foregroundImage: "./assets/images/android-icon-foreground-dev.png",

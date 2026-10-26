@@ -2,13 +2,13 @@
   "expo": {
     "name": "유니돔",
     "slug": "unidorm-app",
-    "version": "3.0.0",
+    "version": "4.0.0",
     "orientation": "portrait",
     "scheme": "unidormapp",
     "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "com.inuappcenter.unidorm",
-      "buildNumber": "13",
+      "buildNumber": "14",
       "supportsTablet": true,
       "googleServicesFile": "./GoogleService-Info.plist",
       "icon": "./assets/expo.icon",
@@ -28,7 +28,7 @@
     },
     "android": {
       "package": "com.hjunieee.inudormitory",
-      "versionCode": 23,
+      "versionCode": 26,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/android-icon-foreground.png",

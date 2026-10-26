@@ -65,3 +65,7 @@ example
 
 services_account.json
 *.ipa
+
+*.apk
+*.aab
+*.tar.gz

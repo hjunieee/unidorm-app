@@ -66,3 +66,28 @@ version range (`"^0.1.0"`) and drop the submodule — no reason to keep both.
 - `src/widgets/*.tsx` files (`NextClassWidget`, `TodayClassesWidget`,
   `BusArrivalWidget`, `CafeteriaMenuWidget`, `TimetableWidget`) stay in this
   app — they're UniDorm-specific, unlike the renderer itself.
+
+
+# Android Build Guidelines (Production vs Development)
+
+**DO NOT** manually invoke Gradle or leave raw `.env.local` files in the repository. Doing so can cause bundle cache pollution where development URLs (`unidorm-test.pages.dev`) leak into production binaries.
+
+Always use the automated build scripts:
+
+- **Production Build (AAB & APK)**:
+  ```bash
+  npm run build:android:prod
+  ```
+  - Automatically ensures `.env.local` is purged.
+  - Injects `unidorm.jks` release keystore credentials.
+  - Clears stale Metro/JS bundle assets to avoid URL caching.
+  - Builds both `unidorm-prod.aab` and `unidorm-prod.apk`.
+  - **Self-Verification Assertion**: Automatically scans the compiled bundle to ensure NO development URLs (`unidorm-test.pages.dev`) are present, failing the build immediately if violated.
+
+- **Development Standalone Build (APK)**:
+  ```bash
+  npm run build:android:dev
+  ```
+  - Sets `APP_VARIANT=development` (Application ID: `com.hjunieee.inudormitory.dev`, Dev badge icon).
+  - Temporarily wires `EXPO_PUBLIC_ROOT_URL=https://unidorm-test.pages.dev`.
+  - Cleans up `.env.local` automatically upon build completion so it never pollutes future production builds.

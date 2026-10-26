@@ -1,7 +1,7 @@
 {
   "name": "unidorm-app",
   "main": "index.js",
-  "version": "3.0.11",
+  "version": "4.0.0",
   "dependencies": {
     "@expo/ui": "~56.0.18",
     "@notifee/react-native": "^9.1.8",
@@ -62,7 +62,9 @@
     "web": "expo start --web",
     "prebuild": "expo prebuild",
     "prebuild:clean": "expo prebuild --clean",
-    "build:android": "./scripts/android-release.sh",
+    "build:android": "node ./scripts/build-android.js --prod",
+    "build:android:prod": "node ./scripts/build-android.js --prod",
+    "build:android:dev": "node ./scripts/build-android.js --dev",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "jest"
