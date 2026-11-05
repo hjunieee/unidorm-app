@@ -135,6 +135,10 @@ export function useBridgeHandlers({
     const offs = [
       channel.on("bridgeReady", () => {
         webBridgeReadyRef.current = true;
+        // Lift the launch overlay now that the SPA bundle has executed and is ready to paint.
+        if (isRoot) {
+          dismissOverlay();
+        }
         // Ask the web for its stored token — see `useTokenSync`. Root only:
         // every WebView shares the same storage, so one probe per launch is
         // enough, and pushed sub-pages would only repeat it.

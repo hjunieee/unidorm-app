@@ -559,6 +559,7 @@ true;
  * CacheStorage, then signals completion through the bridge shim so the native
  * loading overlay can fade out. Injected once after the root page first loads.
  */
+/** @deprecated Preservation of HTTP disk cache replaces startup cleanup; retained for backwards compatibility. */
 export const LAUNCH_CLEANUP_SCRIPT = `
 (function() {
   const tasks = [];

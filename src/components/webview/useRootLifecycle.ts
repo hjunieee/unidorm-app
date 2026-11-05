@@ -2,7 +2,6 @@ import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import { AppState } from "react-native";
 
-import { clearWebViewCache } from "../../native/cache";
 import { onFcmTokenRefresh } from "../../push/fcmTokenSync";
 import {
   getInitialNavIntent,
@@ -13,8 +12,8 @@ import {
 import { useWebViewRegistry } from "../../webview/WebViewContext";
 import type { WebViewRef } from "./types";
 
-/** Hard cap on how long the launch overlay waits for the web cleanup signal. */
-const CLEANUP_OVERLAY_TIMEOUT_MS = 4000;
+/** Hard cap on how long the launch overlay waits for web readiness (bridgeReady) before safety dismissal. */
+const LAUNCH_OVERLAY_TIMEOUT_MS = 6000;
 
 type Options = {
   isRoot: boolean;
@@ -44,10 +43,10 @@ export function useRootLifecycle({
 
   // --- Lifecycle: cache + notifications (root only) --------------------------
   useEffect(() => {
-    // Sub-pages share the process-wide WebView cache; only the launch screen
-    // clears it (login/cookies preserved) and owns the notification lifecycle.
     if (!isRoot) return;
-    clearWebViewCache(webViewRef);
+    // We preserve the HTTP disk cache on launch so the WebView reuses cached Vite
+    // chunks instead of cold-downloading bundles every time. On-demand cache
+    // clear is still available via `clearCacheAndReload`.
 
     const unsubForeground = setupForegroundNotifications();
     const unsubOpen = subscribeNotificationOpen(handleNavIntent);
@@ -61,7 +60,7 @@ export function useRootLifecycle({
       if (state === "active") void postFcmToken();
     });
     // Safety net: never leave the overlay stuck if the web never signals back.
-    const timeout = setTimeout(dismissOverlay, CLEANUP_OVERLAY_TIMEOUT_MS);
+    const timeout = setTimeout(dismissOverlay, LAUNCH_OVERLAY_TIMEOUT_MS);
     return () => {
       unsubForeground();
       unsubOpen();
@@ -69,7 +68,7 @@ export function useRootLifecycle({
       appStateSub.remove();
       clearTimeout(timeout);
     };
-  }, [deliverFcmToken, dismissOverlay, handleNavIntent, isRoot, postFcmToken, webViewRef]);
+  }, [deliverFcmToken, dismissOverlay, handleNavIntent, isRoot, postFcmToken]);
 
   // The root owns the expo-router stack, so it registers native-stack navigation
   // (push/pop/popToRoot) the controller uses to restore a saved session.

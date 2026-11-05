@@ -214,13 +214,7 @@ export default function WebViewContainer({ url, mode }: Props) {
     // Push the FCM token into the web context after every page load (spec §5.A).
     void postFcmToken();
 
-    if (isRoot) {
-      // Kick off the one-time service-worker/cache cleanup loop (spec §5.B).
-      if (!cleanupStartedRef.current) {
-        cleanupStartedRef.current = true;
-        webViewRef.current?.injectJavaScript(LAUNCH_CLEANUP_SCRIPT);
-      }
-    } else {
+    if (!isRoot) {
       // Sub-page: the document is loaded, so the page has (or is one frame from)
       // its first paint — cross-fade the reveal overlay away instead of letting
       // the content pop in on top of the slide-in transition.
