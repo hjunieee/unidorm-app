@@ -66,7 +66,9 @@
     "build:android:dev": "node ./scripts/build-android.js --dev",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "ota:prod": "eas update --channel production --platform all",
+    "ota:dev": "eas update --channel development --platform all"
   },
   "private": true
 }

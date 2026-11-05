@@ -132,7 +132,17 @@
       "policy": "appVersion"
     },
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "0e15cc08-dbd0-4362-9397-6773a27a578a"
+      }
+    },
+    "owner": "daobazzis-team",
+    "updates": {
+      "url": "https://u.expo.dev/0e15cc08-dbd0-4362-9397-6773a27a578a",
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      }
     }
   }
 }
