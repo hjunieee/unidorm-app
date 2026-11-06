@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "유니돔",
-    "slug": "unidorm-app",
+    "slug": "unidorm",
     "version": "4.0.0",
     "orientation": "portrait",
     "scheme": "unidormapp",
