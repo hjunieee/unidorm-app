@@ -267,6 +267,7 @@ export default function WebViewContainer({ url, mode }: Props) {
       // re-download the entire SPA bundle over the network, which is what
       // stretched the blank reveal gap on push (spec §5.B still holds).
       cacheEnabled
+      domStorageEnabled
       // Dev builds only: chrome://inspect (Android) / Safari Web Inspector (iOS).
       webviewDebuggingEnabled={isDevHost}
       // Bridge wiring: shims + alert override before content, observers after.
