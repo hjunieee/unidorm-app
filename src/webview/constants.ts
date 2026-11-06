@@ -120,6 +120,7 @@ export const MAIN_TAB_PATHS = [
   "/chat",
   "/mypage",
   "/complain",
+  "/onboarding",
 ] as const;
 
 const MOBILE_PREFIX = "/m";
