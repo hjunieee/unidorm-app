@@ -13,7 +13,7 @@ import { useWebViewRegistry } from "../../webview/WebViewContext";
 import type { WebViewRef } from "./types";
 
 /** Hard cap on how long the launch overlay waits for web readiness (bridgeReady) before safety dismissal. */
-const LAUNCH_OVERLAY_TIMEOUT_MS = 6000;
+const LAUNCH_OVERLAY_TIMEOUT_MS = 10000;
 
 type Options = {
   isRoot: boolean;
