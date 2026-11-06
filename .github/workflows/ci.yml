@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   verify:
-    name: 검증 (lint · 타입체크 · 테스트)
+    name: 검증 (의존성 · lint · 타입체크 · 테스트)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,6 +27,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Check Expo dependencies
+        run: npm run check:deps
 
       - name: Lint
         run: npm run lint
