@@ -24,7 +24,13 @@ export default function Index() {
   // manual useCallback, which avoids the check/alert circular-memoization warning.
   const check = async () => {
     setStatus('checking');
-    if (await isConnected()) {
+    let online = await isConnected();
+    if (!online) {
+      // 앱 최초 기동 시 안드로이드 네트워크 소켓 바인딩 지연 대비 400ms 대기 후 1회 자동 재확인
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      online = await isConnected();
+    }
+    if (online) {
       setStatus('online');
       return;
     }
