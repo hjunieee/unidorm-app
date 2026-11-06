@@ -27,7 +27,7 @@ describe('normalizePath', () => {
 
 describe('isMainTabPath', () => {
   it('recognises each main tab', () => {
-    for (const p of ['/', '/home', '/roommate', '/roommate/my', '/groupPurchase', '/groupPurchase/comingsoon', '/chat', '/mypage', '/complain']) {
+    for (const p of ['/', '/home', '/roommate', '/roommate/my', '/groupPurchase', '/groupPurchase/comingsoon', '/chat', '/mypage', '/complain', '/onboarding']) {
       expect(isMainTabPath(p)).toBe(true);
     }
   });
